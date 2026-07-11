@@ -1,0 +1,36 @@
+build/
+build_*_*/
+qemu_build
+mock_ble
+temp
+.cache
+
+# Local hardware & project configurations
+sdkconfig
+sdkconfig.old
+
+# Automated component manager folders (dependencies are downloaded on the fly)
+managed_components/
+dependencies.lock
+
+# Python virtual environment and cache folders
+.espressif/
+.pytest_cache/
+__pycache__/
+pytest_embedded_log/
+
+# IDE specific settings (Optional - remove if you want to commit workspace settings)
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+*.png
+cscope*
+.ctags
+files.txt
+tags
+linux_build.sh
+compile_commands.json

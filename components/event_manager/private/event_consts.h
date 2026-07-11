@@ -1,0 +1,6 @@
+#ifndef EVENT_CONSTS_H
+#define EVENT_CONSTS_H
+
+#define MAX_EVENT_SUBSCRIBERS 8
+
+#endif /* EVENT_CONSTS_H */
