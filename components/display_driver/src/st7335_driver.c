@@ -389,7 +389,7 @@ static esp_err_t panel_st7735_sleep(esp_lcd_panel_handle_t panel, bool sleep) {
     switch(sleep) {
         case true :
             // Add backlight p mosfet gate gpio toggle 
-            gpio_manager_power_backlight();
+            gpio_manager_backlight_off();
             cmd = ST7735_DISPOFF;
             ESP_RETURN_ON_ERROR(esp_lcd_panel_io_tx_param(io, cmd, NULL, 0), TAG, "off command failed");
             //10ms wait
