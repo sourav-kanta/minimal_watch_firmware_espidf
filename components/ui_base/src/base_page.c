@@ -7,6 +7,7 @@
 #include <ui_utils.h>
 #include <wf_manager.h>
 #include <app_picker_ui.h>
+#include <notification_ui.h>
 
 static const char* TAG = "Root UI";
 static lv_obj_t *root_screen;
@@ -27,7 +28,7 @@ void close_curr_page(void) {
             clean_app_picker_page();            
             break;
         case NOTIFY :
-            //del_notification_ui(notify_page);
+            clean_notification_page();
             lv_obj_clean(notify_page);
             break;
         default :
@@ -41,7 +42,7 @@ static void show_page(ui_state_t page) {
     switch(page) {
         case NOTIFY :
             ESP_LOGI(TAG, "Open notification page");
-            //draw_notification_ui(notify_page);
+            draw_notification_page(notify_page);
             break;
         case WATCHFACE :
             watchface_manager_start_wf(wf_page);

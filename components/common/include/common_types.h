@@ -50,7 +50,7 @@ typedef struct {
     char body[100];
     char action_name[15];
     char dismiss_text[15];
-    void (*action_handler)();
+    void (*action_handler)(void);
     void (*dismiss_handler)(unsigned int);
 } notification_t;
 

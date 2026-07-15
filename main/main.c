@@ -12,6 +12,7 @@
 #include <tick_manager.h>
 #include <power_manager.h>
 #include <gpio_manager.h>
+#include <notification_manager.h>
 
 void app_main(void)
 {
@@ -34,9 +35,9 @@ void app_main(void)
     tick_manager_init();
     ui_on();
     power_manager_init();
-
+    notification_manager_init();
 
     while(1) {
-        vTaskDelay(pdMS_TO_TICKS(1000)); 
+        vTaskDelay(portMAX_DELAY); 
     }
 }

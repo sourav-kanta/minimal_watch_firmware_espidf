@@ -1,5 +1,6 @@
 #include <st7735_driver.h>
 
+#include <gpio_manager.h>
 #include <stdlib.h>
 #include <sys/cdefs.h>
 #include "freertos/FreeRTOS.h"
@@ -387,7 +388,8 @@ static esp_err_t panel_st7735_sleep(esp_lcd_panel_handle_t panel, bool sleep) {
     int cmd = 0;
     switch(sleep) {
         case true :
-            // Add backlight p mosfet gate gpio toggle later
+            // Add backlight p mosfet gate gpio toggle 
+            gpio_manager_power_backlight();
             cmd = ST7735_DISPOFF;
             ESP_RETURN_ON_ERROR(esp_lcd_panel_io_tx_param(io, cmd, NULL, 0), TAG, "off command failed");
             //10ms wait
@@ -418,12 +420,13 @@ static esp_err_t panel_st7735_sleep(esp_lcd_panel_handle_t panel, bool sleep) {
             ESP_RETURN_ON_ERROR(esp_lcd_panel_io_tx_param(io, cmd, NULL, 0), TAG, "on command failed");
             vTaskDelay(pdMS_TO_TICKS(20));
             // Turn backlight back on
+            gpio_manager_power_backlight();
             break;
     }
     return ESP_OK;
 }
 
 static esp_err_t panel_st7735_set_brightness(esp_lcd_panel_handle_t panel, int brightness) {
-    // TODO
+    gpio_manager_backlight_set_brightness(brightness);
     return ESP_OK;
 }

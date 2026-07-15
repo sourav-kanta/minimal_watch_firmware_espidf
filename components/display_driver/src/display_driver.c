@@ -44,7 +44,7 @@ void init_display(flush_cb_t callback) {
     esp_lcd_panel_io_spi_config_t io_config = {
         .dc_gpio_num = DISPLAY_PIN_NUM_DC,
         .cs_gpio_num = DISPLAY_PIN_NUM_CS,
-        .pclk_hz = 10 * 1000 * 1000,
+        .pclk_hz = 20 * 1000 * 1000,
         .spi_mode = 0,
         .lcd_cmd_bits = 8,
         .lcd_param_bits = 8,
