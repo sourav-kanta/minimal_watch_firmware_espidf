@@ -15,5 +15,6 @@ idf_component_register(
         common_ui
         watchface_mgr
         app_mgr
+        notification_manager
         tick_manager
 )

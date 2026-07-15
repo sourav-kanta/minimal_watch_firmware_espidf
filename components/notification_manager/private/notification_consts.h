@@ -1,0 +1,6 @@
+#ifndef NOTIFICATION_CONSTS_H
+#define NOTIFICATION_CONSTS_H
+
+#define MAX_NOTIFICATIONS               20
+
+#endif /* NOTIFICATION_CONSTS_H */

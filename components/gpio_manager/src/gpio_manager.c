@@ -1,5 +1,6 @@
 #include <gpio_manager.h>
 #include <driver/gpio.h>
+#include <driver/ledc.h>
 #include <common_consts.h>
 #include <gpio_pins.h>
 #include <event_manager.h>
@@ -10,10 +11,12 @@
 
 #define S3_NEOPIXEL_PIN     GPIO_NUM_48
 #define LED_STRIP_LENGTH    1
+#define DISPLAY_BACKLIGHT_CHANNEL LEDC_CHANNEL_0
 
 static const char* TAG = "GPIO Manager";
 static bool initialized = false;
 static led_strip_handle_t led_strip = NULL; 
+static const ledc_timer_t backlight_timer = 0;
 
 static void gpio_manager_arm_wakeup_interrupt(void) {
     if(!initialized) return;
@@ -29,6 +32,44 @@ static void gpio_manager_disarm_wakeup_interrupt(void) {
     if(err != ESP_OK) {
         ESP_LOGE(TAG, "Failed to disable gpio as sleep source : %s", esp_err_to_name(err));
     }
+}
+
+void gpio_manager_power_backlight(void) {
+    if(!initialized) return;
+    ledc_timer_config_t display_bl_config = {
+        .speed_mode = LEDC_LOW_SPEED_MODE,
+        .duty_resolution = LEDC_TIMER_12_BIT,
+        .freq_hz = 1*1000,
+        .clk_cfg = LEDC_AUTO_CLK,
+        .timer_num = backlight_timer
+    };
+    ESP_ERROR_CHECK(ledc_timer_config(&display_bl_config));
+
+    ledc_channel_config_t backlight_channel = {
+        .channel = DISPLAY_BACKLIGHT_CHANNEL,
+        .speed_mode = LEDC_LOW_SPEED_MODE,
+        .sleep_mode = LEDC_SLEEP_MODE_NO_ALIVE_NO_PD,
+        .intr_type = LEDC_INTR_DISABLE,
+        .timer_sel = backlight_timer,
+        .gpio_num = DISPLAY_PIN_BACKLIGHT,
+        .duty = 0,
+        .hpoint = 0
+    };
+    ESP_ERROR_CHECK(ledc_channel_config(&backlight_channel)); 
+    ESP_ERROR_CHECK(ledc_set_duty(LEDC_LOW_SPEED_MODE, DISPLAY_BACKLIGHT_CHANNEL, 2048)); // 50%
+    ESP_ERROR_CHECK(ledc_update_duty(LEDC_LOW_SPEED_MODE, DISPLAY_BACKLIGHT_CHANNEL));
+}
+
+void gpio_manager_backlight_set_brightness(int percent) {
+    if(!initialized || (percent < 0 || percent > 100)) return;
+    int duty = (percent * 4095) / 100;
+    ESP_ERROR_CHECK(ledc_set_duty(LEDC_LOW_SPEED_MODE, DISPLAY_BACKLIGHT_CHANNEL, duty)); // 50%
+    ESP_ERROR_CHECK(ledc_update_duty(LEDC_LOW_SPEED_MODE, DISPLAY_BACKLIGHT_CHANNEL));
+}
+
+void gpio_manager_backlight_off(void) {
+    if(!initialized) return;
+    ESP_ERROR_CHECK(ledc_stop(LEDC_LOW_SPEED_MODE, DISPLAY_BACKLIGHT_CHANNEL, 0));
 }
 
 void gpio_manager_init(void) {
@@ -73,19 +114,25 @@ void gpio_manager_init(void) {
         ESP_LOGE(TAG, "Failed to bind led_strip component: %s", esp_err_to_name(err));
         return;
     }
+
     initialized = true;
     gpio_manager_arm_wakeup_interrupt();
     ESP_LOGI(TAG, "Gpio manager initialized");
 }
 
 void gpio_manager_deinit(void) {
+    if(!initialized) return;
+    gpio_manager_disarm_wakeup_interrupt();
+    if (led_strip != NULL) {
+        led_strip_del(led_strip);
+        led_strip = NULL;
+    }
     esp_err_t err = gpio_uninstall_isr_service();
     if (err == ESP_OK) {
         ESP_LOGI(TAG, "GPIO ISR service uninstalled successfully.");
     } else {
         ESP_LOGE(TAG, "Failed to uninstall ISR service: %s", esp_err_to_name(err));
     }
-    gpio_manager_disarm_wakeup_interrupt();
     initialized = false;
 }
 

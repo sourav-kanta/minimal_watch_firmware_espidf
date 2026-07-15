@@ -17,4 +17,5 @@ idf_component_register(
         tick_manager
         power_manager
         gpio_manager
+        notification_manager
 )

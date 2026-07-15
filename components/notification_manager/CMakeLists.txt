@@ -11,9 +11,7 @@ idf_component_register(
         "private"
     PRIV_REQUIRES
         common
+        common_ui
+        lvgl
         event_manager
-        esp_driver_gpio
-        esp_driver_ledc
-        driver
-        led_strip
 )

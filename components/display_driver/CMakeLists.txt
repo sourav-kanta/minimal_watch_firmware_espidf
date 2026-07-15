@@ -12,4 +12,5 @@ idf_component_register(
     PRIV_REQUIRES
         common
         esp_lcd
+        gpio_manager
 )
