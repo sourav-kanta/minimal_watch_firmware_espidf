@@ -15,7 +15,7 @@ typedef struct {
     const char *name;
     void (*draw_watchface) (lv_obj_t*);
     void (*update_watchface) (wf_update_payload_t*);
-    void (*del_watchface) (lv_obj_t*);
+    void (*del_watchface) (void);
 } watchface_t;
 
 #endif /* UI_TYPES_H */
