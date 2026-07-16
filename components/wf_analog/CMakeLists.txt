@@ -11,10 +11,6 @@ idf_component_register(
         "private"
     PRIV_REQUIRES
         common
+        lvgl
         common_ui
-        wf_abstract_dark
-        wf_analog
-        common_api
-        event_manager
-        tick_manager
 )

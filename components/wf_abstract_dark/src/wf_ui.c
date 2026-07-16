@@ -21,7 +21,7 @@ static const char month[12][13] = {"JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY
 static const char day[7][10] = { "SUNDAY", " MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY",
                                  "FRIDAY", "SATURDAY"};
 
-void wf_draw(lv_obj_t* root) {
+static void wf_draw(lv_obj_t* root) {
     WITH_UI_LOCK() {
         lv_obj_clear_flag(root, LV_OBJ_FLAG_SCROLLABLE);
 
@@ -118,7 +118,7 @@ void wf_draw(lv_obj_t* root) {
     }
 }
 
-void wf_update(wf_update_payload_t *update_data) {
+static void wf_update(wf_update_payload_t *update_data) {
     if (update_data == NULL) {
         return;
     }
@@ -150,7 +150,7 @@ void wf_update(wf_update_payload_t *update_data) {
     }
 }
 
-void wf_del_wf(lv_obj_t* root) {
+static void wf_del_wf() {
     lbl_batt = lbl_day = lbl_temp = lbl_kcal = lbl_steps = NULL;
     lbl_date_num = lbl_month = lbl_time = NULL;
 }

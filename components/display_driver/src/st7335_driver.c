@@ -379,6 +379,8 @@ static esp_err_t panel_st7735_disp_on_off(esp_lcd_panel_t *panel, bool on_off)
         command = LCD_CMD_DISPOFF;
     }
     ESP_RETURN_ON_ERROR(esp_lcd_panel_io_tx_param(io, command, NULL, 0), TAG, "send command failed");
+    if(on_off) gpio_manager_power_backlight();
+    else gpio_manager_backlight_off();
     return ESP_OK;
 }
 

@@ -6,7 +6,6 @@ temp
 .cache
 
 # Local hardware & project configurations
-sdkconfig
 sdkconfig.old
 
 # Automated component manager folders (dependencies are downloaded on the fly)

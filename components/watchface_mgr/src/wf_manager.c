@@ -8,6 +8,7 @@
 #include <common_apis.h>
 
 #include <wf_abstract_dark.h>
+#include <wf_analog.h>
 
 static watchface_t* all_wfs[MAX_WATCHFACES];
 static watchface_t* selected_wf = NULL;
@@ -44,6 +45,7 @@ void watchface_manager_init(void) {
     }
     
     initialized = true;
+    register_wf(get_analog_wf());
     register_wf(get_abstract_dark_wf());
 
     select_wf();
@@ -96,6 +98,8 @@ void watchface_manager_stop_wf(void) {
         ESP_LOGE(TAG, "Unknown watchface to stop");
         return;
     }
+    if(curr_wf->del_watchface!=NULL)
+        curr_wf->del_watchface();
     event_unsubscribe(EVENT_WATCHFACE_UPDATE, dispatch_wf_update);
     tick_manager_stop_tick(TICK_WATCHFACE);
     curr_wf = NULL;
