@@ -2,6 +2,7 @@
 #include <storage_consts.h>
 #include <esp_log.h>
 #include <esp_err.h>
+#include <esp_assert.h>
 #include <nvs_flash.h>
 #include <string.h>
 #include <runtime_manager.h>
@@ -24,6 +25,7 @@ typedef struct {
     char key[16];
     uint8_t data[STORAGE_MAX_DATA_SIZE];
 } storage_work_t;
+ESP_STATIC_ASSERT(sizeof(storage_work_t) <= MAX_WORKER_ARG_PAYLOAD, "Work struct overflow");
 
 void storage_manager_init(void) {
     if(initialized) return;
@@ -54,7 +56,7 @@ static void storage_manager_execute_work(void *arg, runtime_abort_flag_t* flag) 
     if (!work) return;
 
     char ns_name[16];
-    snprintf(ns_name, sizeof(ns_name), "app_%03x", work->app_id);
+    snprintf(ns_name, sizeof(ns_name), "app_%03u", work->app_id);
 
     nvs_handle_t handle;
     if (nvs_open_from_partition(STORAGE_PARTITION_LABEL, ns_name, NVS_READWRITE, &handle) != ESP_OK) {
@@ -171,7 +173,7 @@ bool storage_manager_retrieve_key(uint8_t app_id, const char* key, uint8_t* dest
     }
 
     char ns_name[16];
-    snprintf(ns_name, sizeof(ns_name), "app_%03x", app_id);
+    snprintf(ns_name, sizeof(ns_name), "app_%03u", app_id);
 
     nvs_handle_t handle;
     if (nvs_open_from_partition(STORAGE_PARTITION_LABEL, ns_name, NVS_READONLY, &handle) != ESP_OK) {
@@ -202,7 +204,7 @@ bool storage_manager_retrieve_all(uint8_t app_id, retrieve_callback_t callback_f
     }
 
     char ns_name[16];
-    snprintf(ns_name, sizeof(ns_name), "app_%03x", app_id);
+    snprintf(ns_name, sizeof(ns_name), "app_%03u", app_id);
 
     nvs_iterator_t it = NULL;
     esp_err_t res = nvs_entry_find(STORAGE_PARTITION_LABEL, ns_name, NVS_TYPE_BLOB, &it);
@@ -244,7 +246,7 @@ unsigned int storage_manager_get_app_storage_size(uint8_t app_id) {
     if (!initialized) return 0;
 
     char ns_name[16];
-    snprintf(ns_name, sizeof(ns_name), "app_%03x", app_id);
+    snprintf(ns_name, sizeof(ns_name), "app_%03u", app_id);
 
     nvs_iterator_t it = NULL;
     esp_err_t res = nvs_entry_find(STORAGE_PARTITION_LABEL, ns_name, NVS_TYPE_BLOB, &it);

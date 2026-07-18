@@ -13,7 +13,7 @@
 #define MAX_APPS                        15
 #define MAX_SYSTEM_APPS                 5
 
-#define MAX_APP_RESPONSE_SIZE           256
+#define MAX_APP_RESPONSE_SIZE           220
 #define MAX_NOTIFICATION_TITLE_SIZE     14
 #define MAX_NOTIFICATION_BODY_SIZE      100
 #define BT_DEVICE_NAME                  "MINWH"
