@@ -53,8 +53,10 @@ void watchdog_force_all_mandatory_abort(void) {
     assert(workers);
     for(int i=0;i<WORKER_POOL_SIZE; i++) {
         if(atomic_load(&workers[i].working)) {
-            esp_timer_stop(workers[i].soft_close);
-            esp_timer_stop(workers[i].hard_close);
+            if(workers[i].type == WORK_TYPE_USER) { 
+                esp_timer_stop(workers[i].soft_close);
+                esp_timer_stop(workers[i].hard_close);
+            }
             worker_pool_recover_stalled_worker(&workers[i], false);
         }
     }

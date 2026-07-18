@@ -42,7 +42,7 @@ static void pool_worker_entry(void *pvParameters) {
                 watchdog_start_user_work(worker_metadata);
             }
             atomic_store(&worker_metadata->working, true);
-            item.handler(item.arg1, &worker_metadata->abort_flag);
+            item.handler(item.arg_payload, &worker_metadata->abort_flag);
             atomic_store(&worker_metadata->working, false);
             if(is_user_task) {
                 // Stop watchdog timer for task
@@ -50,8 +50,7 @@ static void pool_worker_entry(void *pvParameters) {
             }
             atomic_store(&worker_metadata->abort_flag, true);
             vTaskPrioritySet(NULL, RUNTIME_BASELINE_PRIORITY);
-            atomic_fetch_sub(&active_workers, 1);
-            if(atomic_load(&active_workers) == 0) {
+            if(atomic_fetch_sub(&active_workers, 1) == 1) {
                 // Evaluate early curfew
                 runtime_manager_evaluate_early_curfew();
             }
@@ -89,9 +88,7 @@ void worker_pool_recover_stalled_worker(worker_registry_t* worker, bool resume) 
     worker_registry_t temp = *worker;
     if(temp.task_handle) {
         vTaskDelete(temp.task_handle);
-        if(atomic_exchange(&worker->working, false)) {
-            atomic_fetch_sub(&active_workers, 1);
-        } 
+        atomic_fetch_sub(&active_workers, 1);
     }
     memset(worker, 0, sizeof(worker_registry_t));
     worker->worker_id = temp.worker_id;

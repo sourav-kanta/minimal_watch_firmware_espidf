@@ -98,7 +98,8 @@ static void set_runtime_state(runtime_state_t target_state) {
 }
                                   
 static void curfew_hook_adapter(void* arg1, runtime_abort_flag_t* flag) {
-    curfew_hook_t hook = (curfew_hook_t) arg1;
+    if(!arg1) return;
+    curfew_hook_t hook = *(curfew_hook_t*) arg1;
     if(hook) {
         ESP_LOGD(TAG, "Executing hooked task");
         hook();
@@ -123,8 +124,8 @@ static void runtime_manager_begin_curfew_unsafe(void) {
                 .type = WORK_TYPE_SYSTEM,
                 .priority = RUNTIME_SYSTEM_PRIORITY,
                 .handler = curfew_hook_adapter,
-                .arg1 = (void*)window_hooks[i]
             };
+            memcpy(work_item.arg_payload, &window_hooks[i], sizeof(curfew_hook_t));
             if(pdPASS != xQueueSend(system_work, &work_item, 0)) {
                 ESP_LOGE(TAG, "Unable to submit hook, skipping");
             }
