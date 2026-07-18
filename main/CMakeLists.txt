@@ -18,4 +18,5 @@ idf_component_register(
         power_manager
         gpio_manager
         notification_manager
+        storage_manager
 )

@@ -13,6 +13,8 @@
 #include <power_manager.h>
 #include <gpio_manager.h>
 #include <notification_manager.h>
+#include <storage_manager.h>
+#include <esp_log.h>
 
 void app_main(void)
 {
@@ -20,7 +22,8 @@ void app_main(void)
     event_manager_init();
     gpio_manager_init();
     runtime_manager_init();
-    runtime_get_state();    
+    runtime_get_state();
+    storage_manager_init();    
     esp_err_t err = nvs_flash_init();
     if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
         ESP_ERROR_CHECK(nvs_flash_erase());

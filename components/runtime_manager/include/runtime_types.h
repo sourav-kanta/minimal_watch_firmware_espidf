@@ -22,9 +22,8 @@ typedef enum {
 typedef struct {
     void (*handler)(void *arg1, runtime_abort_flag_t *abort_flag);
     runtime_work_type_t type; 
-    uint8_t priority;
-    void *arg1;
     uint8_t arg_payload[MAX_WORKER_ARG_PAYLOAD];
+    uint8_t priority;
 } runtime_work_item_t;
 
 typedef void (*curfew_hook_t)(void);

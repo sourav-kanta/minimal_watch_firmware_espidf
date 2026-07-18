@@ -53,7 +53,6 @@ static void receive_app_update(const event_t *event) {
         .type = WORK_TYPE_USER,
     };
     memcpy(work.arg_payload, event->data, sizeof(app_update_t));
-    work.arg1 = work.arg_payload;
     schedule_user_work(&work); 
 }
 
