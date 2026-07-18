@@ -1,6 +1,7 @@
 #include <app_manager.h>
 #include <lvgl.h>
 #include <esp_log.h>
+#include <esp_assert.h>
 #include <common_consts.h>
 #include <app_utils.h>
 #include <picker_ui.h>
@@ -44,7 +45,7 @@ static void dispatch_app_update(void* arg, runtime_abort_flag_t* flag) {
 }
 
 static void receive_app_update(const event_t *event) {
-    if(!event || !initialized) {
+    if(!event || !initialized || !event->data) {
         ESP_LOGE(TAG, "Invalid app update");
         return;
     }
@@ -52,6 +53,8 @@ static void receive_app_update(const event_t *event) {
         .handler = dispatch_app_update,
         .type = WORK_TYPE_USER,
     };
+    assert(event->payload_len == sizeof(app_update_t));
+    ESP_STATIC_ASSERT(sizeof(app_update_t) <= MAX_WORKER_ARG_PAYLOAD, "Worker payload overflow");
     memcpy(work.arg_payload, event->data, sizeof(app_update_t));
     schedule_user_work(&work); 
 }
