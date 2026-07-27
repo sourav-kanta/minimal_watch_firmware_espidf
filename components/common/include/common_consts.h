@@ -18,4 +18,6 @@
 #define MAX_NOTIFICATION_BODY_SIZE      100
 #define BT_DEVICE_NAME                  "MINWH"
 
+#define WATCHFACE_SYSTEM_APP_ID         1
+
 #endif /* COMMON_CONSTS_H */
