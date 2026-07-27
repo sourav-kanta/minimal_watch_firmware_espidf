@@ -17,4 +17,5 @@ idf_component_register(
         common_api
         event_manager
         tick_manager
+        storage_manager
 )
