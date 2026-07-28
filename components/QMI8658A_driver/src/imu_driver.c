@@ -19,8 +19,7 @@ static const qmi8658_cmd_t init_cmds[] = {
     },
     { 
         .reg_addr = QMI8658A_REG_CTRL8,
-        .data = QMI8658A_CTRL8_CTRL9_HANDSHAKE_TYPE |
-                QMI8658A_CTRL8_ACTIVITY_INT_SEL,
+        .data = QMI8658A_CTRL8_CTRL9_HANDSHAKE_TYPE,
         .delay_ms = 0
     },
     { 
@@ -262,8 +261,8 @@ imu_err_t imu_enable_pedometer(void) {
     uint8_t peak_h = peak >> 8;
     uint8_t time_up_l = time_up & 0xFF;
     uint8_t time_up_h = time_up >> 8;
-    uint8_t cmd1 = 0x01;
-    uint8_t cmd2 = 0x02;
+    uint8_t cmd1 = 0x01 << 4;
+    uint8_t cmd2 = 0x02 << 4;
 
     success = imu_interface.write(imu_interface.intf_ptr, QMI8658A_REG_CAL1_L, 
                                   &sample_cnt_l, sizeof(uint8_t));
@@ -390,23 +389,180 @@ imu_err_t imu_reset_fifo_buffer(void) {
 }
 
 imu_err_t imu_setup_wake_on_motion(void) {
-    ESP_LOGE(TAG, "Unimplemented : TODO");
-    return IMU_FAILED;
+    imu_err_t success = IMU_OK;
+    uint8_t data = 0;
+    success = imu_interface.read(imu_interface.intf_ptr, QMI8658A_REG_CTRL7, &data, sizeof(uint8_t));
+    if(success != IMU_OK) return success;
+    bool accel_enabled = (data & QMI8658A_CTRL7_AEN_MASK) == QMI8658A_CTRL7_AEN_MASK;
+    bool gyro_enabled = (data & QMI8658A_CTRL7_GEN_MASK) == QMI8658A_CTRL7_GEN_MASK;
+    success = imu_enter_low_power_mode();
+    if(success != IMU_OK) return success;
+    uint8_t wom_threshold = 3;
+    uint8_t wom_int = (0b00 << 6) | 15;
+    success = imu_interface.write(imu_interface.intf_ptr, QMI8658A_REG_CAL1_L, 
+                                 &wom_threshold, sizeof(uint8_t));
+    if(success != IMU_OK) return success;
+    success = imu_interface.write(imu_interface.intf_ptr, QMI8658A_REG_CAL1_H, 
+                                 &wom_int, sizeof(uint8_t));
+    if(success != IMU_OK) return success;
+    success = ctrl9_handshake(QMI8658A_CTRL9_CMD_WRITE_WOM_SETTING);
+    if(success != IMU_OK) return success;
+    
+    if(accel_enabled) success = imu_enable_accelerometer();
+    else ESP_LOGW(TAG, "Wake on motion enabled but accelerometer is off, detection wont work");
+    if(success != IMU_OK) return success;
+    if(gyro_enabled) success = imu_enable_gyro();
+    return success;
 }
 
 imu_err_t imu_setup_detect_no_motion(void) {
-    ESP_LOGE(TAG, "Unimplemented : TODO");
-    return IMU_FAILED;
+    imu_err_t success = IMU_OK;
+    uint8_t data = 0;
+    success = imu_interface.read(imu_interface.intf_ptr, QMI8658A_REG_CTRL7, &data, sizeof(uint8_t));
+    if(success != IMU_OK) return success;
+    bool accel_enabled = (data & QMI8658A_CTRL7_AEN_MASK) == QMI8658A_CTRL7_AEN_MASK;
+    bool gyro_enabled = (data & QMI8658A_CTRL7_GEN_MASK) == QMI8658A_CTRL7_GEN_MASK;
+    success = imu_enter_low_power_mode();
+    if(success != IMU_OK) return success;
+    uint8_t any_motion_x_thr = 3;
+    uint8_t any_motion_y_thr = 3;
+    uint8_t any_motion_z_thr = 3;
+    uint8_t no_motion_x_thr = 2;
+    uint8_t no_motion_y_thr = 2;
+    uint8_t no_motion_z_thr = 2;
+    uint8_t motion_mode_ctrl = 0b11110111;
+    uint8_t cmd1 = 0x01 << 4;
+    uint8_t any_motion_window = 2;
+    uint8_t no_motion_window = 15;
+    uint16_t sig_wait_win = 1000;
+    uint16_t sig_confirm_win = 1000;
+    uint8_t sig_wait_l = sig_wait_win & 0xFF;
+    uint8_t sig_wait_h = sig_wait_win >> 8;
+    uint8_t sig_confirm_l = sig_confirm_win & 0xFF;
+    uint8_t sig_confirm_h = sig_confirm_win >> 8;
+    uint8_t cmd2 = 0x02 << 4;
+    success = imu_interface.write(imu_interface.intf_ptr, QMI8658A_REG_CAL1_L, 
+                                 &any_motion_x_thr, sizeof(uint8_t));
+    if(success != IMU_OK) return success;
+    success = imu_interface.write(imu_interface.intf_ptr, QMI8658A_REG_CAL1_H, 
+                                  &any_motion_y_thr, sizeof(uint8_t));
+    if(success != IMU_OK) return success;
+    success = imu_interface.write(imu_interface.intf_ptr, QMI8658A_REG_CAL2_L, 
+                                  &any_motion_z_thr, sizeof(uint8_t));
+    if(success != IMU_OK) return success;
+    success = imu_interface.write(imu_interface.intf_ptr, QMI8658A_REG_CAL2_H, 
+                                  &no_motion_x_thr, sizeof(uint8_t));
+    if(success != IMU_OK) return success;
+    success = imu_interface.write(imu_interface.intf_ptr, QMI8658A_REG_CAL3_L, 
+                                  &no_motion_y_thr, sizeof(uint8_t));
+    if(success != IMU_OK) return success;
+    success = imu_interface.write(imu_interface.intf_ptr, QMI8658A_REG_CAL3_H, 
+                                  &no_motion_z_thr, sizeof(uint8_t));
+    if(success != IMU_OK) return success;
+    success = imu_interface.write(imu_interface.intf_ptr, QMI8658A_REG_CAL4_L, 
+                                  &motion_mode_ctrl, sizeof(uint8_t));
+    if(success != IMU_OK) return success;
+    success = imu_interface.write(imu_interface.intf_ptr, QMI8658A_REG_CAL4_H, 
+                                  &cmd1, sizeof(uint8_t));
+    if(success != IMU_OK) return success;
+    success = ctrl9_handshake(QMI8658A_CTRL9_CMD_CONFIGURE_MOTION);
+    if(success != IMU_OK) return success;
+
+    success = imu_interface.write(imu_interface.intf_ptr, QMI8658A_REG_CAL1_L, 
+                                  &any_motion_window, sizeof(uint8_t));
+    if(success != IMU_OK) return success;
+    success = imu_interface.write(imu_interface.intf_ptr, QMI8658A_REG_CAL1_H, 
+                                  &no_motion_window, sizeof(uint8_t));
+    if(success != IMU_OK) return success;
+    success = imu_interface.write(imu_interface.intf_ptr, QMI8658A_REG_CAL2_L, 
+                                  &sig_wait_l, sizeof(uint8_t));
+    if(success != IMU_OK) return success;
+    success = imu_interface.write(imu_interface.intf_ptr, QMI8658A_REG_CAL2_H, 
+                                  &sig_wait_h, sizeof(uint8_t));
+    if(success != IMU_OK) return success;
+    success = imu_interface.write(imu_interface.intf_ptr, QMI8658A_REG_CAL3_L, 
+                                  &sig_confirm_l, sizeof(uint8_t));
+    if(success != IMU_OK) return success;
+    success = imu_interface.write(imu_interface.intf_ptr, QMI8658A_REG_CAL3_H, 
+                                  &sig_confirm_h, sizeof(uint8_t));
+    if(success != IMU_OK) return success;
+    success = imu_interface.write(imu_interface.intf_ptr, QMI8658A_REG_CAL4_H, 
+                                  &cmd2, sizeof(uint8_t));
+    if(success != IMU_OK) return success;
+    success = ctrl9_handshake(QMI8658A_CTRL9_CMD_CONFIGURE_MOTION);
+    if(success != IMU_OK) return success;
+
+    uint8_t ctrl8_data = 0;
+    success = imu_interface.read(imu_interface.intf_ptr, QMI8658A_REG_CTRL8, &ctrl8_data, sizeof(uint8_t));
+    if(success != IMU_OK) return success;
+    ctrl8_data |= QMI8658A_CTRL8_NO_MOTION_EN_MASK;
+    success = imu_interface.write(imu_interface.intf_ptr, QMI8658A_REG_CTRL8, &ctrl8_data, sizeof(uint8_t));
+    if(success != IMU_OK) return success;
+        
+    if(accel_enabled) success = imu_enable_accelerometer();
+    else ESP_LOGW(TAG, "No motion enabled but accelerometer is off, detection wont work");
+    if(success != IMU_OK) return success;
+    if(gyro_enabled) success = imu_enable_gyro();
+    return success;
 }
 
 
 imu_err_t imu_disable_detect_no_motion(void) {
-    ESP_LOGE(TAG, "Unimplemented : TODO");
-    return IMU_FAILED;
+    imu_err_t success = IMU_OK;
+    uint8_t data = 0;
+
+    success = imu_interface.read(imu_interface.intf_ptr, QMI8658A_REG_CTRL8, &data, sizeof(uint8_t));
+    if(success != IMU_OK) return success;
+    data &= ~QMI8658A_CTRL8_NO_MOTION_EN_MASK;
+    success = imu_interface.write(imu_interface.intf_ptr, QMI8658A_REG_CTRL8, &data, sizeof(uint8_t));
+    return success;
 }
 
 imu_err_t imu_disable_wake_on_motion(void) {
-    ESP_LOGE(TAG, "Unimplemented : TODO");
-    return IMU_FAILED;
+    imu_err_t success = IMU_OK;
+    uint8_t data = 0;
+
+    // read disables interrupt if present
+    success = imu_interface.read(imu_interface.intf_ptr, QMI8658A_REG_STATUS1, &data, sizeof(uint8_t));
+    if(success != IMU_OK) return success;
+    
+    success = imu_interface.read(imu_interface.intf_ptr, QMI8658A_REG_CTRL7, &data, sizeof(uint8_t));
+    if(success != IMU_OK) return success;
+    bool accel_enabled = (data & QMI8658A_CTRL7_AEN_MASK) == QMI8658A_CTRL7_AEN_MASK;
+    bool gyro_enabled = (data & QMI8658A_CTRL7_GEN_MASK) == QMI8658A_CTRL7_GEN_MASK;
+    success = imu_enter_low_power_mode();
+    if(success != IMU_OK) return success;
+    uint8_t wom_threshold = 0;
+    success = imu_interface.write(imu_interface.intf_ptr, QMI8658A_REG_CAL1_L, 
+                                 &wom_threshold, sizeof(uint8_t));
+    if(success != IMU_OK) return success;
+    success = ctrl9_handshake(QMI8658A_CTRL9_CMD_WRITE_WOM_SETTING);
+    if(success != IMU_OK) return success;
+    
+    if(accel_enabled) success = imu_enable_accelerometer();
+    if(success != IMU_OK) return success;
+    if(gyro_enabled) success = imu_enable_gyro();
+    return success;
 }
 
+imu_err_t imu_detect_no_motion(bool* is_no_motion) {
+    if(!is_no_motion) return IMU_INVALID_CONFIG;
+    imu_err_t success = IMU_OK;
+    uint8_t status1 = 0;
+    success = imu_interface.read(imu_interface.intf_ptr, QMI8658A_REG_STATUS1, &status1, sizeof(uint8_t));
+    if(success != IMU_OK) return success;
+    *is_no_motion = (status1 & QMI8658A_STATUS1_NO_MOTION) == QMI8658A_STATUS1_NO_MOTION;
+    return success;
+}
+
+imu_err_t imu_read_temperature(int* temp_scaled_100) {
+    if(!temp_scaled_100) return IMU_INVALID_CONFIG;
+    uint8_t data[2] = {0};
+    imu_err_t success = IMU_OK;
+    size_t len = sizeof(data) / sizeof(data[0]); 
+    success = imu_interface.read(imu_interface.intf_ptr, QMI8658A_REG_TEMP_L, data, len);
+    if(success != IMU_OK) return success;
+    int16_t temp_raw = (int16_t)(data[1]<<8) | ((int16_t) data[0]);
+    *temp_scaled_100 = ((int)temp_raw * 100) / 256;
+    return success;
+}

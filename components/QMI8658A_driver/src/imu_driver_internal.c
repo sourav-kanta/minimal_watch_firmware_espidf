@@ -20,6 +20,7 @@ static imu_err_t esp32_imu_reg_read(void* intf_ptr, uint8_t reg_addr, uint8_t *d
     spi_transaction_t transaction = {
         .addr = reg_addr | (1<<7),
         .length = len * sizeof(uint8_t) * 8,
+        .rxlength = len * sizeof(uint8_t) * 8,
         .flags = SPI_TRANS_USE_RXDATA,
     };
     esp_err_t ret = spi_device_transmit(spi, &transaction);
@@ -57,7 +58,8 @@ static imu_err_t esp32_imu_fifo_read(void* intf_ptr, uint8_t reg_addr, uint8_t *
     }
     spi_transaction_t transaction = {
         .addr = reg_addr | (1<<7), 
-        .length = len * 8,       
+        .length = len * 8,
+        .rxlength = len * 8,       
         .rx_buffer = data,
     };
     esp_err_t ret = spi_device_transmit(spi, &transaction);
