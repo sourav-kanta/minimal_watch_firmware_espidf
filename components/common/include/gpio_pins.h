@@ -31,5 +31,6 @@
 #define SENSOR_IMU_MOSI                     41
 #define SENSOR_IMU_MISO                     42
 #define SENSOR_GSR_READ                     18
+#define SENSOR_IMU_HOST                     SPI3_HOST
 
 #endif /* GPIO_PINS_H */
