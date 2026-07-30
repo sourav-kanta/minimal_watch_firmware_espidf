@@ -14,6 +14,7 @@ idf_component_register(
         common_ui
         wf_abstract_dark
         wf_analog
+        wf_retro
         common_api
         event_manager
         tick_manager
