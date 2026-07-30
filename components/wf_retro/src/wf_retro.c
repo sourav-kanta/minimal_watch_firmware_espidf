@@ -210,13 +210,19 @@ void update_retro_wf(wf_update_payload_t* update_data) {
     if(!update_data) return;
     WITH_UI_LOCK() {
             date_time_t time = update_data->time;
+            assert(time.hr < 24);
+            assert(time.min < 60);
+            assert(time.sec < 60);
+            assert(time.month <= 12);
+            assert(time.d_week < 7);
             if(time_label) lv_label_set_text_fmt(time_label, "%02d:%02d", time.hr, time.min);
             if(sec_label) lv_label_set_text_fmt(sec_label, "%02d", time.sec);
-            if(month_lbl) lv_label_set_text(month_lbl, months[time.month]);
+            int month_idx = (time.month == 0 || time.month > 12) ? 0 : time.month - 1;
+            assert(month_idx >= 0 && month_idx < 12);
+            if(month_lbl) lv_label_set_text(month_lbl, months[month_idx]);
             if(year_lbl) lv_label_set_text_fmt(year_lbl, "%02d", time.year%100);
             if(day_label) lv_label_set_text(day_label, weekdays[time.d_week]);
     }
-     
 }
 
 void delete_retro_wf(void) {
