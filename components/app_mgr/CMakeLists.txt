@@ -18,5 +18,6 @@ idf_component_register(
         runtime_manager
         event_manager
         weather_app
+        settings_app
         brickbreaker_game
 )

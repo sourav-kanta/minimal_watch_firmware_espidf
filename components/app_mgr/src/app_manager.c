@@ -8,6 +8,8 @@
 #include <runtime_types.h> 
 #include <runtime_manager.h>
 #include <event_manager.h>
+
+#include <settings_app.h>
 #include <weather_app.h>
 #include <brickbreaker_game.h>
 
@@ -66,6 +68,7 @@ void app_manager_init(void) {
     is_app_running = false;
     initialized = true;
     add_app(get_weather_app());
+    add_app(get_settings_app());
     add_app(get_brickbreaker_game());
     event_subscribe(EVENT_APP_WORK_SCHEDULE, receive_app_update);
 }
