@@ -1,7 +1,6 @@
 build/
 build_*_*/
 qemu_build
-mock_ble
 docs
 temp
 .cache
@@ -32,5 +31,4 @@ cscope*
 .ctags
 files.txt
 tags
-linux_build.sh
 compile_commands.json
