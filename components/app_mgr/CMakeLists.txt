@@ -12,12 +12,12 @@ idf_component_register(
     PRIV_REQUIRES
         common
         common_ui
-    REQUIRES
         lvgl
-        common_app
         runtime_manager
         event_manager
         weather_app
         settings_app
         brickbreaker_game
+    REQUIRES
+        common_app
 )
