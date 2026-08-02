@@ -7,6 +7,8 @@ idf_component_register(
         ${SOURCES}
     INCLUDE_DIRS 
         "include"
+    PRIV_INCLUDE_DIRS 
+        "private"
     PRIV_REQUIRES
         common
         lvgl
