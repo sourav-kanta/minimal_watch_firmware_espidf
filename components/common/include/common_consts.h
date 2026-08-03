@@ -19,5 +19,6 @@
 #define BT_DEVICE_NAME                  "MINWH"
 
 #define WATCHFACE_SYSTEM_APP_ID         1
+#define CORE_SYSTEM_APP_ID              2
 
 #endif /* COMMON_CONSTS_H */

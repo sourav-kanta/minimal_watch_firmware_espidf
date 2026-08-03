@@ -39,6 +39,7 @@ bool watchface_manager_select_wf(uint8_t idx) {
         return false;
     }
 
+    selected_wf = all_wfs[idx];
     bool success = storage_manager_save_key(WATCHFACE_SYSTEM_APP_ID, "WF_IDX", &idx, sizeof(uint8_t));
     if(!success) {
         ESP_LOGE(TAG, "Failed to store the selected watchface");
@@ -46,7 +47,7 @@ bool watchface_manager_select_wf(uint8_t idx) {
     return success;
 }
 
-const watchface_t* watchface_manager_get_selected_wf(void) {
+static const watchface_t* watchface_manager_get_selected_wf(void) {
     if(!initialized) return NULL;
     if(selected_wf == NULL) {
         uint8_t idx;
@@ -73,6 +74,25 @@ const watchface_t* watchface_manager_get_selected_wf(void) {
     }
     ESP_LOGI(TAG, "Selecting watchface : %s", selected_wf->name);
     return selected_wf;
+}
+
+size_t watchface_manager_get_total_wfs(void) {
+    if(!initialized) return 0;
+    return num_wfs;
+} 
+
+size_t watchface_manager_get_all_wf_names(const char** names) {
+    if(!initialized) return 0;
+    assert(names);
+    for(int i=0; i<num_wfs; i++) {
+        names[i] = all_wfs[i]->name;
+    }
+    return num_wfs;
+}
+
+const char* watchface_manager_get_selected_wf_name(void) {
+    if(!initialized || selected_wf == NULL) return NULL;
+    return selected_wf->name;
 }
 
 void watchface_manager_init(void) {

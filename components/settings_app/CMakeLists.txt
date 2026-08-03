@@ -15,4 +15,6 @@ idf_component_register(
         common_ui
         common_api
         common_app
+        watchface_mgr
+        gpio_manager
 )

@@ -1,7 +1,7 @@
 idf_component_register(
     SRCS "mock_layer.c"
     INCLUDE_DIRS "."
-    REQUIRES esp_lcd encoder_driver ble_manager runtime_manager
+    REQUIRES esp_lcd encoder_driver ble_manager runtime_manager esp_driver_ledc
 )
 
 target_include_directories(
@@ -21,4 +21,6 @@ target_link_libraries(${COMPONENT_LIB} INTERFACE
     "-Wl,--wrap=esp_sleep_enable_gpio_wakeup"
     "-Wl,--wrap=encoder_init"
     "-Wl,--wrap=encoder_deinit"
+    "-Wl,--wrap=ledc_set_duty"
+    "-Wl,--wrap=ledc_update_duty"
 )
