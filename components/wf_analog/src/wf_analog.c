@@ -148,6 +148,7 @@ void delete_wf(void) {
 
 
 static watchface_t analog_wf = {
+    .name = "Analog",
     .draw_watchface = draw_wf,
     .update_watchface = update_wf,
     .del_watchface = delete_wf

@@ -5,7 +5,9 @@
 #include <lvgl.h>
 
 bool watchface_manager_select_wf(uint8_t idx);
-const watchface_t* watchface_manager_get_selected_wf(void);
+const char* watchface_manager_get_selected_wf_name(void);
+size_t watchface_manager_get_all_wf_names(const char** names);
+size_t watchface_manager_get_total_wfs(void);
 void watchface_manager_start_wf(lv_obj_t* parent);
 void watchface_manager_stop_wf(void);
 void watchface_manager_init(void);

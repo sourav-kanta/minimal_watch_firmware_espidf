@@ -243,6 +243,7 @@ void delete_retro_wf(void) {
 
 
 static watchface_t retro_wf = {
+    .name = "Retro",
     .draw_watchface = draw_retro_wf,
     .update_watchface = update_retro_wf,
     .del_watchface = delete_retro_wf

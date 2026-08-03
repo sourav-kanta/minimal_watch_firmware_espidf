@@ -16,4 +16,5 @@ idf_component_register(
         esp_driver_ledc
         driver
         led_strip
+        storage_manager
 )

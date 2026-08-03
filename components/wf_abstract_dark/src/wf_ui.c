@@ -156,7 +156,7 @@ static void wf_del_wf() {
 }
 
 static watchface_t wf = {
-    .name = "LIGHT",
+    .name = "Modern",
     .draw_watchface = &wf_draw,
     .update_watchface = &wf_update,
     .del_watchface = &wf_del_wf

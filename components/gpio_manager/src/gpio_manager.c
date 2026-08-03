@@ -8,6 +8,7 @@
 #include <led_strip.h>
 #include <esp_err.h>
 #include <esp_log.h>
+#include <storage_manager.h>
 
 #define S3_NEOPIXEL_PIN     GPIO_NUM_48
 #define LED_STRIP_LENGTH    1
@@ -17,6 +18,7 @@ static const char* TAG = "GPIO Manager";
 static bool initialized = false;
 static led_strip_handle_t led_strip = NULL; 
 static const ledc_timer_t backlight_timer = 0;
+static uint8_t backlight_percent = 100;
 
 static void gpio_manager_arm_wakeup_interrupt(void) {
     if(!initialized) return;
@@ -34,37 +36,55 @@ static void gpio_manager_disarm_wakeup_interrupt(void) {
     }
 }
 
-void gpio_manager_power_backlight(void) {
-    if(!initialized) return;
-    ledc_timer_config_t display_bl_config = {
-        .speed_mode = LEDC_LOW_SPEED_MODE,
-        .duty_resolution = LEDC_TIMER_12_BIT,
-        .freq_hz = 1*1000,
-        .clk_cfg = LEDC_AUTO_CLK,
-        .timer_num = backlight_timer
-    };
-    ESP_ERROR_CHECK(ledc_timer_config(&display_bl_config));
+static void save_backlight_brightness(int percent) {
+    uint8_t pct = percent;
+    bool success = storage_manager_save_key(CORE_SYSTEM_APP_ID, "BACKLIGHT", &pct, sizeof(uint8_t));
+    if(!success) {
+        ESP_LOGE(TAG, "Unable to store brightness");
+    }
+}
 
-    ledc_channel_config_t backlight_channel = {
-        .channel = DISPLAY_BACKLIGHT_CHANNEL,
-        .speed_mode = LEDC_LOW_SPEED_MODE,
-        .sleep_mode = LEDC_SLEEP_MODE_NO_ALIVE_NO_PD,
-        .intr_type = LEDC_INTR_DISABLE,
-        .timer_sel = backlight_timer,
-        .gpio_num = DISPLAY_PIN_BACKLIGHT,
-        .duty = 0,
-        .hpoint = 0
-    };
-    ESP_ERROR_CHECK(ledc_channel_config(&backlight_channel)); 
-    ESP_ERROR_CHECK(ledc_set_duty(LEDC_LOW_SPEED_MODE, DISPLAY_BACKLIGHT_CHANNEL, 2048)); // 50%
-    ESP_ERROR_CHECK(ledc_update_duty(LEDC_LOW_SPEED_MODE, DISPLAY_BACKLIGHT_CHANNEL));
+static int retrieve_backlight_brightness(void) {
+    uint8_t percent;
+    uint8_t data_len = sizeof(uint8_t);
+    bool success = storage_manager_retrieve_key(CORE_SYSTEM_APP_ID, "BACKLIGHT", &percent, &data_len);
+    if(success) {
+        assert(data_len == sizeof(uint8_t));
+        if(percent > 100) {
+            ESP_LOGE(TAG, "Invalid brightness percentage. Default to 100%");
+            return 100;
+        }
+        else {
+            return percent;
+        }
+    }
+    else {
+        // No key found, first time boot
+        backlight_percent = 100;
+        save_backlight_brightness(100);
+    }
+    return backlight_percent;
+}
+
+int gpio_manager_backlight_get_brightness(void) {
+    if(!initialized) return 100;
+    return backlight_percent;
 }
 
 void gpio_manager_backlight_set_brightness(int percent) {
     if(!initialized || (percent < 0 || percent > 100)) return;
+    if(percent != backlight_percent) {
+        save_backlight_brightness(percent);
+    }
+    backlight_percent = percent;
     int duty = (percent * 4095) / 100;
     ESP_ERROR_CHECK(ledc_set_duty(LEDC_LOW_SPEED_MODE, DISPLAY_BACKLIGHT_CHANNEL, duty)); // 50%
     ESP_ERROR_CHECK(ledc_update_duty(LEDC_LOW_SPEED_MODE, DISPLAY_BACKLIGHT_CHANNEL));
+}
+
+void gpio_manager_power_backlight(void) {
+    if(!initialized) return;
+    gpio_manager_backlight_set_brightness(backlight_percent);
 }
 
 void gpio_manager_backlight_off(void) {
@@ -114,6 +134,28 @@ void gpio_manager_init(void) {
         ESP_LOGE(TAG, "Failed to bind led_strip component: %s", esp_err_to_name(err));
         return;
     }
+
+    backlight_percent = retrieve_backlight_brightness();
+    ledc_timer_config_t display_bl_config = {
+        .speed_mode = LEDC_LOW_SPEED_MODE,
+        .duty_resolution = LEDC_TIMER_12_BIT,
+        .freq_hz = 1*1000,
+        .clk_cfg = LEDC_AUTO_CLK,
+        .timer_num = backlight_timer
+    };
+    ESP_ERROR_CHECK(ledc_timer_config(&display_bl_config));
+
+    ledc_channel_config_t backlight_channel = {
+        .channel = DISPLAY_BACKLIGHT_CHANNEL,
+        .speed_mode = LEDC_LOW_SPEED_MODE,
+        .sleep_mode = LEDC_SLEEP_MODE_NO_ALIVE_NO_PD,
+        .intr_type = LEDC_INTR_DISABLE,
+        .timer_sel = backlight_timer,
+        .gpio_num = DISPLAY_PIN_BACKLIGHT,
+        .duty = 0,
+        .hpoint = 0
+    };
+    ESP_ERROR_CHECK(ledc_channel_config(&backlight_channel)); 
 
     initialized = true;
     gpio_manager_arm_wakeup_interrupt();

@@ -13,6 +13,7 @@
 #include <ble_response_handler.h> 
 #include <ble_types.h>
 #include <ble_consts.h>
+#include <driver/ledc.h>
 
 esp_lcd_panel_handle_t qemu_mock_panel_handle = NULL;
 void (*callback) ();
@@ -237,5 +238,18 @@ esp_err_t __wrap_gpio_sleep_sel_en(int gpio_num) {
 }
 
 esp_err_t __wrap_esp_sleep_enable_gpio_wakeup(void) {
+    return ESP_OK;
+}
+
+esp_err_t __wrap_ledc_set_duty(ledc_mode_t speed_mode, ledc_channel_t channel, uint32_t duty) {
+    (void)speed_mode;
+    (void)channel;
+    (void)duty;
+    return ESP_OK;
+}
+
+esp_err_t __wrap_ledc_update_duty(ledc_mode_t speed_mode, ledc_channel_t channel) {
+    (void)speed_mode;
+    (void)channel;
     return ESP_OK;
 }
