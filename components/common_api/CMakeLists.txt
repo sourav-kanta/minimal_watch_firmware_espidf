@@ -12,6 +12,7 @@ idf_component_register(
     REQUIRES
         common
         common_app
+        common_ui
     PRIV_REQUIRES
         state_manager
         event_manager
