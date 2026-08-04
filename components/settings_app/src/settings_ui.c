@@ -9,9 +9,8 @@
 #include <global_locks.h>
 #include <listview.h>
 #include <popup_listview.h>
-#include <wf_manager.h>
 #include <common_consts.h>
-#include <gpio_manager.h>
+#include <common_apis.h>
 
 #include "assets/settings_ico.h"
 
@@ -23,6 +22,7 @@ static popup_registry_t timeout_popup_registry;
 static popup_registry_t brightness_popup_registry;
 static popup_registry_t wf_popup_registry;
 static size_t wf_count = 0;
+static application_t settings_app;
 
 static void open_watchface_selection_popup(void *data);
 static void open_timeout_selection_popup(void *data);
@@ -66,8 +66,13 @@ static listview_t *wf_items = NULL;
 
 static void select_watchface(int index) {
     ESP_LOGD(TAG, "Selected watchface index : %d", index);
-    bool success = watchface_manager_select_wf(index);
-    const char* selected_wf = watchface_manager_get_selected_wf_name();
+    bool success = set_system_watchface(&settings_app, index);
+    if(!success) {
+        ESP_LOGE(TAG, "Unable to update system watchface");
+        return;
+    }
+
+    const char* selected_wf = get_system_selected_watchface_name();
     // Set value label
     lv_obj_t* value_lbl = list_items[0].value_label;
     if(success && value_lbl != NULL && selected_wf != NULL) {
@@ -102,8 +107,24 @@ static listview_t timeout_items[] = {
     },
 };
 
+static const uint32_t timeout[] = { 5000, 7000, 10000, UINT32_MAX };
+
 static void select_timeout(int index) {
-    ESP_LOGE(TAG, "Selected timeout index : %d", index);
+    assert(index<(sizeof(timeout)/sizeof(timeout[0])));
+    assert(index<(sizeof(timeout_items)/sizeof(timeout_items[0])));
+    bool success = set_ui_inactivity_timeout(&settings_app, timeout[index]);
+    if(!success) {
+        ESP_LOGE(TAG, "Unable to update system UI timeout");
+        return;
+    }
+
+    ESP_LOGD(TAG, "Selected timeout : %u", timeout[index]);
+    lv_obj_t* value_lbl = list_items[1].value_label;
+    if(value_lbl != NULL) {
+        WITH_UI_LOCK() {
+            lv_label_set_text(value_lbl, timeout_items[index].title);
+        }
+    }
 }
 
 static void open_timeout_selection_popup(void *data) {
@@ -140,12 +161,18 @@ static listview_t brightness_items[] = {
     },
 };
 
+static const int brightness_percent[] = { 10, 25,40, 60,80, 100 };
+
 static void select_brightness(int index) {
     ESP_LOGD(TAG, "Selected brightness index : %d", index);
-    int brightness_percent[] = { 10, 25,40, 60,80, 100 };
     assert(index<(sizeof(brightness_percent)/sizeof(brightness_percent[0])));
     assert(index<(sizeof(brightness_items)/sizeof(brightness_items[0])));
-    gpio_manager_backlight_set_brightness(brightness_percent[index]);
+    bool success = set_system_brightness(&settings_app, brightness_percent[index]);
+    if(!success) {
+        ESP_LOGE(TAG, "Unable to update brightness");
+        return;
+    }
+
     lv_obj_t* value_lbl = list_items[2].value_label;
     if(value_lbl != NULL) {
         WITH_UI_LOCK() {
@@ -163,13 +190,13 @@ static void open_brightness_selection_popup(void *data) {
 
 void draw_settings_app_ui(lv_obj_t* parent) {
     assert(parent);
-    const char* selected_wf = watchface_manager_get_selected_wf_name();
+    const char* selected_wf = get_system_selected_watchface_name();
     if(selected_wf != NULL) {
         list_items[0].value = selected_wf;
     }
     
     const char* all_wf_names[MAX_WATCHFACES];
-    wf_count = watchface_manager_get_all_wf_names(all_wf_names);
+    wf_count = get_system_watchface_names(all_wf_names);
     if (wf_count == 0) {
         ESP_LOGE(TAG, "No watchfaces available");
         return;
@@ -184,7 +211,8 @@ void draw_settings_app_ui(lv_obj_t* parent) {
         wf_items[i].title = all_wf_names[i];
     }
 
-    int backlight_percent = gpio_manager_backlight_get_brightness();
+    int backlight_percent = get_system_brightness();
+    int timeout = get_ui_inactivity_timeout() / 1000;
 
     WITH_UI_LOCK() {
         parent_container = parent;
@@ -203,6 +231,12 @@ void draw_settings_app_ui(lv_obj_t* parent) {
         for(int i=0 ; i<item_count; i++) {
             draw_listview_item(base_container, &list_items[i]);
             draw_horizoantal_divider(base_container);
+        }
+        if(list_items[1].value_label) {
+            if(timeout != UINT32_MAX/1000)
+                lv_label_set_text_fmt(list_items[1].value_label, "%ds", timeout);
+            else 
+                lv_label_set_text(list_items[1].value_label, "None");
         }
         if(list_items[2].value_label) {
             lv_label_set_text_fmt(list_items[2].value_label, "%d%%", backlight_percent);
@@ -225,6 +259,7 @@ void delete_settings_app_ui(void) {
 
 static application_t settings_app = {
     .name = "Settings",
+    .app_perms = APP_PERM_SYSTEM,
     .ico = &settings_ico,
     .draw_app = draw_settings_app_ui,
     .close_app = delete_settings_app_ui,

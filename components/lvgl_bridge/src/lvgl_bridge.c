@@ -1,3 +1,5 @@
+#include <lvgl_bridge.h>
+
 #include <common_types.h>
 #include <common_consts.h>
 #include <esp_log.h>
@@ -9,7 +11,6 @@
 #include <encoder_driver.h>
 #include <lvgl_handler_thread.h>
 #include <lvgl_input_translator.h>
-#include "lvgl_bridge.h"
 
 static const char* TAG = "LVGL_SETUP";
 
@@ -100,7 +101,17 @@ void resume_lvgl(void) {
     }
 }
 
+bool lvgl_bridge_update_inactivity_timeout(uint32_t to) {
+    if(to < DISPLAY_MIN_USER_INPUT_TIMEOUT) {
+        ESP_LOGE(TAG, "Invalid inactivity timeout");
+        return false;
+    }
+    return update_input_timeout(to);
+}
 
+uint32_t lvgl_bridge_get_inactivity_timeout(void) {
+    return get_input_timeout(); 
+}
 
 lv_group_t* get_keypad_group() {
     return get_key_group();

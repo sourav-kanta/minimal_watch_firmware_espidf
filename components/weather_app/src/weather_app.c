@@ -539,6 +539,7 @@ static void receive_event(const app_update_t* update) {
 
 static application_t weather_app = {
     .name = "Weather",
+    .app_perms = APP_PERM_BLE,
     .ico = &cloudy,
     .draw_app = draw_app_ui,
     .close_app = delete_app_ui,
@@ -562,7 +563,7 @@ static void trigger_dated_weather_request(const date_time_t *target_date) {
     ESP_LOGI(TAG, "Batch action committed. Sending BLE request for: %02d/%02d/%04d", 
             target_date->day, target_date->month, target_date->year);
 
-    request_ble_resource(DATED_WEATHER_REQUEST, (void*)target_date, get_system_app_id(&weather_app));
+    request_ble_resource(&weather_app, DATED_WEATHER_REQUEST, (void*)target_date);
 }
 
 application_t* get_weather_app(void) {

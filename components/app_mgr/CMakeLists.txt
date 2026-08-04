@@ -9,6 +9,8 @@ idf_component_register(
         "include"
     PRIV_INCLUDE_DIRS
         "private"
+    REQUIRES
+        common_app
     PRIV_REQUIRES
         common
         common_ui
@@ -18,6 +20,4 @@ idf_component_register(
         weather_app
         settings_app
         brickbreaker_game
-    REQUIRES
-        common_app
 )
