@@ -11,10 +11,8 @@ idf_component_register(
         "private"
     PRIV_REQUIRES
         common
-        lvgl
         common_ui
         common_api
         common_app
-        watchface_mgr
-        gpio_manager
+        lvgl
 )

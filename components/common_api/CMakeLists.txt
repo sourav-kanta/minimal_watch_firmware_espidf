@@ -9,9 +9,13 @@ idf_component_register(
         "include"
     PRIV_INCLUDE_DIRS
         "private"
-    PRIV_REQUIRES
+    REQUIRES
         common
+        common_app
+    PRIV_REQUIRES
         state_manager
         event_manager
-        common_app
+        gpio_manager
+        watchface_mgr
+        lvgl_bridge
 )

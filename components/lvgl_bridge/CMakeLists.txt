@@ -16,4 +16,5 @@ idf_component_register(
         display_driver
         encoder_driver
         event_manager
+        storage_manager
 )

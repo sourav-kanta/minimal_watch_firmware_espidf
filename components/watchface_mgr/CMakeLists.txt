@@ -9,9 +9,10 @@ idf_component_register(
         "include"
     PRIV_INCLUDE_DIRS
         "private"
+    REQUIRES
+        common_ui
     PRIV_REQUIRES
         common
-        common_ui
         wf_abstract_dark
         wf_analog
         wf_retro

@@ -1,3 +1,5 @@
+#include <lvgl_handler_thread.h>
+
 #include <lvgl.h>
 #include <esp_timer.h>
 #include <stdatomic.h>
@@ -9,13 +11,15 @@
 #include <common_consts.h>
 #include <global_locks.h>
 #include <event_manager.h>
-#include "lvgl_handler_thread.h"
 #include <stdint.h>
+#include <storage_manager.h>
 
 static atomic_bool lvgl_run_flag = false;
 static TaskHandle_t worker_handle = NULL;
 static const char* TAG = "LVGL Thread";
 static SemaphoreHandle_t lvgl_exit_semaphore = NULL;
+static uint32_t input_timeout = DISPLAY_MIN_USER_INPUT_TIMEOUT;
+
 static void lvgl_task(void *pvParameter) {
     bool first_render = true;    
     lv_display_trigger_activity(NULL);
@@ -39,7 +43,7 @@ static void lvgl_task(void *pvParameter) {
             idle_time = lv_display_get_inactive_time(NULL);
         }
 
-        if(idle_time > DISPLAY_MAX_USER_INPUT_TIMEOUT) {
+        if(idle_time > input_timeout) {
             // Raise event to put display to sleep
             ESP_LOGI(TAG, "User inactivity, putting display to sleep");
             event_t ev = {
@@ -68,7 +72,54 @@ static void lvgl_task(void *pvParameter) {
     vTaskDelete(NULL);
 }
 
+static bool save_input_timeout(uint32_t timeout) {
+    uint8_t to[4] = {(timeout & 0xFF) , (timeout >> 8)&0xFF, (timeout >> 16)&0xFF, (timeout >> 24)&0xFF };
+    bool success = storage_manager_save_key(CORE_SYSTEM_APP_ID, "TIMEOUT", to, sizeof(uint32_t));
+    if(!success) {
+        ESP_LOGE(TAG, "Unable to store timeout");
+        return false;
+    }
+    return true;
+}
+
+static uint32_t retrieve_input_timeout(void) {
+    uint32_t timeout;
+    uint8_t data[4];
+    uint8_t data_len = sizeof(uint32_t);
+    bool success = storage_manager_retrieve_key(CORE_SYSTEM_APP_ID, "TIMEOUT", data, &data_len);
+    if(success) {
+        assert(data_len == sizeof(uint32_t));
+        timeout = ((uint32_t)data[3] << 24) | ((uint32_t)data[2] << 16) | 
+                  ((uint32_t)data[1] << 8) | (uint32_t)data[0]; 
+        if(timeout < DISPLAY_MIN_USER_INPUT_TIMEOUT) {
+            // Timeout too short overwrite with default
+            input_timeout =  DISPLAY_MIN_USER_INPUT_TIMEOUT;
+            save_input_timeout(DISPLAY_MIN_USER_INPUT_TIMEOUT);
+        }
+        else {
+            return timeout;
+        }
+    }
+    else {
+        // No key found, first time boot
+        input_timeout = DISPLAY_MIN_USER_INPUT_TIMEOUT;
+        save_input_timeout(DISPLAY_MIN_USER_INPUT_TIMEOUT);
+    }
+    return input_timeout;
+}
+
+bool update_input_timeout(uint32_t timeout) {
+    assert(timeout >= DISPLAY_MIN_USER_INPUT_TIMEOUT);
+    input_timeout = timeout;
+    return save_input_timeout(input_timeout);    
+}
+
+uint32_t get_input_timeout(void) {
+    return input_timeout;
+}
+
 void start_lvgl_thread() {
+    input_timeout = retrieve_input_timeout();
     if(worker_handle != NULL) {
         ESP_LOGW(TAG, "LVGL task already running");
         if(lvgl_exit_semaphore)

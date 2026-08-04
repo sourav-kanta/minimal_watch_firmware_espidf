@@ -71,8 +71,8 @@ int gpio_manager_backlight_get_brightness(void) {
     return backlight_percent;
 }
 
-void gpio_manager_backlight_set_brightness(int percent) {
-    if(!initialized || (percent < 0 || percent > 100)) return;
+bool gpio_manager_backlight_set_brightness(int percent) {
+    if(!initialized || (percent < 0 || percent > 100)) return false;
     if(percent != backlight_percent) {
         save_backlight_brightness(percent);
     }
@@ -80,6 +80,7 @@ void gpio_manager_backlight_set_brightness(int percent) {
     int duty = (percent * 4095) / 100;
     ESP_ERROR_CHECK(ledc_set_duty(LEDC_LOW_SPEED_MODE, DISPLAY_BACKLIGHT_CHANNEL, duty)); // 50%
     ESP_ERROR_CHECK(ledc_update_duty(LEDC_LOW_SPEED_MODE, DISPLAY_BACKLIGHT_CHANNEL));
+    return true;
 }
 
 void gpio_manager_power_backlight(void) {
