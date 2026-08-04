@@ -40,7 +40,7 @@ static void register_input(input_key_t key) {
 }
 
 void mock_send_time(void) {
-    uint32_t timestamp = 1785674096;
+    uint32_t timestamp = 1785984486;
 
     ble_msg_t msg = {
         .hdr = {
@@ -91,6 +91,39 @@ void mock_send_weather(void) {
     handle_ble_response(&msg);
 }
 
+void mock_send_dated_weather_response(void) {
+    ble_msg_t msg = {
+        .hdr = {
+            .opcode = BLE_OP_DATED_WEATHER_QUERY,
+            .req_app = 15,
+            .len = BLE_MSG_WEATHER_SIZE
+        }
+    };
+
+    uint8_t *p = msg.payload;
+    p[0] = 0xFF;
+    p[1] = 0xFF;
+    p[2] = 0xFF;
+    p[3] = 0xFF;
+
+    p += 4;
+
+    for (int i = 0; i < 24; i++) {
+
+        int16_t temp = 285;
+
+        *p++ = (temp >> 8) & 0xFF;
+        *p++ = temp & 0xFF;
+
+        *p++ = 65;   // humidity
+        *p++ = 10;   // precipitation probability
+        *p++ = 2;    // weather code
+        *p++ = 12;   // wind speed
+    }
+
+    handle_ble_response(&msg);
+}
+
 static void keyboard_task(void* arg) {
     printf("[QEMU MOCK] Keyboard active\n");
     printf("Controls:\n");
@@ -98,6 +131,8 @@ static void keyboard_task(void* arg) {
     printf("  d -> right\n");
     printf("  enter -> ok\n");
     printf("  esc -> back\n");
+    printf("  s -> time update\n");
+    printf("  w -> weather_update\n");
 
     while(1)
     {
@@ -123,6 +158,10 @@ static void keyboard_task(void* arg) {
 
             case 'w':
                 mock_send_weather();
+                break;
+
+            case 'q':
+                mock_send_dated_weather_response();
                 break;
 
             case 27:

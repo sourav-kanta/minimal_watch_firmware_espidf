@@ -31,14 +31,19 @@ static lv_obj_t* app_root_cont = NULL;
 static void close_current_app_cb(lv_event_t* e) {
     if(!check_if_app_running()) return;
     lv_event_code_t code = lv_event_get_code(e);
-    if(code == LV_EVENT_KEY && lv_event_get_key(e) == LV_KEY_ESC) {
+    if(code == LV_EVENT_KEY) {
         if(lv_group_get_focused(lv_group_get_default()) == app_scr) {
-            close_curr_app();
-            WITH_UI_LOCK() {
-                lv_obj_delete(app_scr);
+            if(lv_event_get_key(e) == LV_KEY_ESC) {
+                close_curr_app();
+                WITH_UI_LOCK() {
+                    lv_obj_delete(app_scr);
+                }
+                app_scr = NULL;
+            }
+            // Consume everything except enter
+            if(lv_event_get_key(e) != LV_KEY_ENTER) {
                 lv_event_stop_bubbling(e);
             }
-            app_scr = NULL;
         }
     }
 }

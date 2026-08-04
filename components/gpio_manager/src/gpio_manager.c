@@ -12,12 +12,12 @@
 
 #define S3_NEOPIXEL_PIN     GPIO_NUM_48
 #define LED_STRIP_LENGTH    1
-#define DISPLAY_BACKLIGHT_CHANNEL LEDC_CHANNEL_0
+#define DISPLAY_BACKLIGHT_CHANNEL LEDC_CHANNEL_1
 
 static const char* TAG = "GPIO Manager";
 static bool initialized = false;
 static led_strip_handle_t led_strip = NULL; 
-static const ledc_timer_t backlight_timer = 0;
+static const ledc_timer_t backlight_timer = LEDC_TIMER_1;
 static uint8_t backlight_percent = 100;
 
 static void gpio_manager_arm_wakeup_interrupt(void) {
