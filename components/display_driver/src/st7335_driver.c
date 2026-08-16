@@ -429,6 +429,6 @@ static esp_err_t panel_st7735_sleep(esp_lcd_panel_handle_t panel, bool sleep) {
 }
 
 static esp_err_t panel_st7735_set_brightness(esp_lcd_panel_handle_t panel, int brightness) {
-    gpio_manager_backlight_set_brightness(brightness);
+    //gpio_manager_backlight_set_brightness(brightness);
     return ESP_OK;
 }

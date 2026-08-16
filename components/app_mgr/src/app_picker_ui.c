@@ -143,6 +143,7 @@ void draw_app_picker_ui(lv_obj_t* root, application_t** apps, uint8_t num_apps) 
             lv_obj_set_style_border_width(btn, STYLE_BORDER_WIDTH_CELL, 0);
             lv_obj_set_style_border_color(btn, COLOR_THEME_PRIMARY, 0); 
             lv_obj_set_style_pad_all(btn, STYLE_PADDING_NONE, 0);
+            lv_obj_set_style_pad_row(btn, 5, LV_STATE_DEFAULT);
             lv_obj_set_flex_flow(btn, LV_FLEX_FLOW_COLUMN);
             lv_obj_set_flex_align(btn, LV_FLEX_ALIGN_CENTER, 
                     LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);

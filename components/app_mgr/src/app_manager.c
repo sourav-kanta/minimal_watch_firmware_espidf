@@ -11,6 +11,8 @@
 
 #include <settings_app.h>
 #include <weather_app.h>
+#include <alarm_app.h>
+#include <stopwatch_app.h>
 #include <brickbreaker_game.h>
 
 static const char* TAG = "App Manager";
@@ -69,6 +71,8 @@ void app_manager_init(void) {
     initialized = true;
     add_app(get_weather_app());
     add_app(get_settings_app());
+    add_app(get_alarm_app());
+    add_app(get_stopwatch_app());
     add_app(get_brickbreaker_game());
     event_subscribe(EVENT_APP_WORK_SCHEDULE, receive_app_update);
 }

@@ -21,6 +21,7 @@ pytest_embedded_log/
 # IDE specific settings (Optional - remove if you want to commit workspace settings)
 .vscode/
 .idea/
+*.bin
 *.suo
 *.ntvs*
 *.njsproj

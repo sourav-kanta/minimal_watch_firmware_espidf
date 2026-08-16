@@ -13,6 +13,7 @@
 #include <common_types.h>
 #include <esp_system.h>
 #include <esp_sleep.h>
+#include <gpio_manager.h>
 
 static const char* TAG = "Power Manager";
 static int64_t sleep = 0;
@@ -34,12 +35,14 @@ static void power_task_fn(void *arg)
                 state = POWER_STATE_BACKGROUND;
                 ESP_LOGI(TAG, "Suspending UI");
                 ui_sleep();
+                gpio_manager_enter_background_mode();
                 runtime_manager_set_active_state(false);
                 break;
 
             case POWER_CMD_UI_WAKE:
                 if(state == POWER_STATE_UI_ACTIVE) break;
                 state = POWER_STATE_UI_ACTIVE;
+                gpio_manager_enter_active_mode();
                 ESP_LOGI(TAG, "Resuming UI");
                 runtime_manager_set_active_state(true);
                 ui_resume();

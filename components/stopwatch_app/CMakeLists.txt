@@ -7,14 +7,12 @@ idf_component_register(
         ${SOURCES}
     INCLUDE_DIRS 
         "include"
-    PRIV_INCLUDE_DIRS
+    PRIV_INCLUDE_DIRS 
         "private"
     PRIV_REQUIRES
         common
-        event_manager
-        esp_pm
-        ui_manager
-        runtime_manager
-        tick_manager
-        gpio_manager
+        common_ui
+        common_api
+        common_app
+        lvgl
 )

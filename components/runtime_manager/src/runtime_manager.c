@@ -14,7 +14,6 @@
 #include <runtime_watchdog.h>
 #include <common_types.h>
 #include <event_manager.h>
-#include <gpio_manager.h>
 
 typedef struct {
     int64_t window_start_time;
@@ -71,7 +70,6 @@ static void set_runtime_state(runtime_state_t target_state) {
                 int64_t window_duration = runtime_state == RUNTIME_STATE_UI_ACTIVE ? 
                                           WINDOW_UI_MAX_MS*1000 : WINDOW_BACKGROUND_MAX_MS*1000;
                 assert(window_ctx.window_start_time);
-                gpio_manager_debug_led_on();
                 esp_timer_start_once(window_ctx.total_window_timer, window_duration);
                 // Resume worker pools
                 worker_pool_resume_all();
@@ -91,7 +89,6 @@ static void set_runtime_state(runtime_state_t target_state) {
             // Watchdog abort and suspend worker pools
             watchdog_force_all_mandatory_abort();
             worker_pool_suspend_all();
-            gpio_manager_debug_led_off();
             ESP_LOGD(TAG, "Worker window stopped, sleeping");
         }
     }
