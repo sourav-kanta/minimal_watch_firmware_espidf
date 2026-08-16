@@ -49,13 +49,13 @@ void init_display(flush_cb_t callback) {
         .lcd_cmd_bits = 8,
         .lcd_param_bits = 8,
         .trans_queue_depth = 10,
-        .on_color_trans_done = spi_transfer_done_cb
+        .on_color_trans_done = spi_transfer_done_cb,
     };
     ESP_ERROR_CHECK(esp_lcd_new_panel_io_spi(DISPLAY_LCD_HOST, &io_config, &io_handle));
 
     esp_lcd_panel_dev_config_t panel_config = {
         .reset_gpio_num = DISPLAY_PIN_NUM_RST,
-        .rgb_ele_order = LCD_RGB_ELEMENT_ORDER_BGR,
+        .rgb_ele_order = LCD_RGB_ELEMENT_ORDER_RGB,
         .bits_per_pixel = 16,
     };
     ESP_ERROR_CHECK(esp_lcd_new_panel_st7735(io_handle, &panel_config, &panel_handle));
@@ -68,7 +68,7 @@ void init_display(flush_cb_t callback) {
     if(panel_handle) {
         ESP_ERROR_CHECK(esp_lcd_panel_reset(panel_handle));
         ESP_ERROR_CHECK(esp_lcd_panel_init(panel_handle));
-        ESP_ERROR_CHECK(esp_lcd_panel_mirror(panel_handle, true, true));
+        ESP_ERROR_CHECK(esp_lcd_panel_mirror(panel_handle, false, false));
     }
     else {
         ESP_LOGE(TAG, "Panel handle is NULL, panic!");

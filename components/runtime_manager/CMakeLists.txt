@@ -13,7 +13,6 @@ idf_component_register(
         common
         event_manager
         esp_timer
-        gpio_manager
 )
 
 target_compile_options(${COMPONENT_LIB} PRIVATE -fstack-usage)

@@ -44,6 +44,7 @@ void init_lvgl(void) {
                             DISPLAY_LVGL_BUFFER_SIZE, LV_DISPLAY_RENDER_MODE_PARTIAL);
     lv_display_set_flush_cb(disp, lvgl_display_flush_cb);
     lv_display_set_color_format(disp, LV_COLOR_FORMAT_RGB565_SWAPPED);
+    lv_display_set_offset(disp, 2, 1);
     ESP_LOGI("LVGL", "LVGL initialized with DMA buffers");
 
     xinputQueue = xQueueCreate(MAX_INPUTS, sizeof(encoder_input_t));
