@@ -2,6 +2,7 @@
 #define IMU_REGISTER_DEFS_H
 
 #define QMI8658A_WHO_AM_I_VAL               0x05    /**< Expected WHO_AM_I value */
+#define QMI8658A_REVISION_ID                0x7C    /**< Expected Revision id value */
 #define QMI8658A_RESET_CMD                  0xB0    /**< Soft reset command value */
 
 /**

@@ -14,6 +14,7 @@ static const qmi8658_cmd_t init_cmds[] = {
         .reg_addr = QMI8658A_REG_CTRL1,
         .data = QMI8658A_CTRL1_ADDR_AI_MASK |
                 QMI8658A_CTRL1_INT1_EN_MASK |
+                QMI8658A_CTRL1_BE_MASK |
                 QMI8658A_CTRL1_INT2_EN_MASK, 
         .delay_ms = 10
     },
@@ -32,7 +33,7 @@ static const qmi8658_cmd_t init_cmds[] = {
         .reg_addr = QMI8658A_REG_CTRL2,
         .data = QMI8658A_ACCEL_FS_8G |
                 QMI8658A_ACCEL_ODR_LP_21HZ,
-        .delay_ms = 0
+        .delay_ms = 120
     },
     { 
         .reg_addr = QMI8658A_REG_CTRL7,
@@ -96,9 +97,13 @@ static imu_err_t execute_sequential_cmds(const qmi8658_cmd_t *cmds, int cmd_len)
     assert(cmds);
     imu_err_t success = IMU_OK;
     for(int i=0; i<cmd_len;i++) {
+        ESP_LOGD(TAG, "Cmd : %02X Data : %02X", cmds[i].reg_addr, cmds[i].data);
         success = imu_interface.write(imu_interface.intf_ptr, cmds[i].reg_addr,
                                       &cmds[i].data, sizeof(uint8_t));
-        if(success != IMU_OK) return success;
+        if(success != IMU_OK) {
+            ESP_LOGE(TAG, "Failed in command : %u", cmds[i].reg_addr);
+            return success;
+        }
         if(cmds[i].delay_ms != 0) {
             TickType_t ticks = pdMS_TO_TICKS(cmds[i].delay_ms);
             vTaskDelay(ticks == 0 ? 1 : ticks);
@@ -109,8 +114,8 @@ static imu_err_t execute_sequential_cmds(const qmi8658_cmd_t *cmds, int cmd_len)
 
 static imu_err_t ctrl9_handshake(uint8_t cmd) {
     imu_err_t success = IMU_OK;
-    const int timeout_ms = 20;
-    const int delay_ms = 1;
+    const int timeout_ms = 120;
+    const int delay_ms = 5;
     int elapsed_ms = 0;
     success = imu_interface.write(imu_interface.intf_ptr, QMI8658A_REG_CTRL9, &cmd, sizeof(uint8_t));
     if(success != IMU_OK) return success;
@@ -130,7 +135,7 @@ static imu_err_t ctrl9_handshake(uint8_t cmd) {
             success = imu_interface.write(imu_interface.intf_ptr, QMI8658A_REG_CTRL9, 
                                           &ack_cmd, sizeof(uint8_t));
             if(success != IMU_OK) return success;
-            ack_sent = true; 
+            ack_sent = true;
         }
         TickType_t ticks = pdMS_TO_TICKS(delay_ms);
         vTaskDelay(ticks == 0 ? 1 : ticks);
@@ -147,7 +152,12 @@ imu_err_t imu_init(const imu_params_t* params) {
     uint8_t dev = 0;
     success = imu_interface.read(imu_interface.intf_ptr, QMI8658A_REG_WHO_AM_I, &dev, sizeof(uint8_t));
     if(success!= IMU_OK || dev != QMI8658A_WHO_AM_I_VAL) {
-        ESP_LOGE(TAG, "Failed to verify IMU identity");
+        ESP_LOGE(TAG, "Failed to verify IMU identity : %u", dev);
+        return IMU_FAILED;
+    }
+    success = imu_interface.read(imu_interface.intf_ptr, QMI8658A_REG_REVISION_ID, &dev, sizeof(uint8_t));
+    if(success!= IMU_OK || dev != QMI8658A_REVISION_ID) {
+        ESP_LOGE(TAG, "Failed to verify IMU identity : %u", dev);
         return IMU_FAILED;
     }
     success = execute_sequential_cmds(init_cmds, cmd_len);
@@ -185,6 +195,7 @@ imu_err_t imu_enable_accelerometer(void) {
     if(success != IMU_OK) return success;
     data = data | QMI8658A_CTRL7_AEN_MASK;
     success = imu_interface.write(imu_interface.intf_ptr, QMI8658A_REG_CTRL7, &data, sizeof(uint8_t));
+    vTaskDelay(pdMS_TO_TICKS(120));
     return success;
 }
 
@@ -195,6 +206,7 @@ imu_err_t imu_disable_accelerometer(void) {
     if(success != IMU_OK) return success;
     data = data & (~QMI8658A_CTRL7_AEN_MASK);
     success = imu_interface.write(imu_interface.intf_ptr, QMI8658A_REG_CTRL7, &data, sizeof(uint8_t));
+    vTaskDelay(pdMS_TO_TICKS(120));
     return success;
 }
 
@@ -205,6 +217,7 @@ imu_err_t imu_enable_gyro(void) {
     if(success != IMU_OK) return success;
     data = data | QMI8658A_CTRL7_GEN_MASK;
     success = imu_interface.write(imu_interface.intf_ptr, QMI8658A_REG_CTRL7, &data, sizeof(uint8_t));
+    vTaskDelay(pdMS_TO_TICKS(120));
     return success;
 }
 
@@ -215,10 +228,11 @@ imu_err_t imu_disable_gyro(void) {
     if(success != IMU_OK) return success;
     data = data & (~QMI8658A_CTRL7_GEN_MASK);
     success = imu_interface.write(imu_interface.intf_ptr, QMI8658A_REG_CTRL7, &data, sizeof(uint8_t));
+    vTaskDelay(pdMS_TO_TICKS(120));
     return success;
 } 
 
-imu_err_t imu_configure_high_accuracy_mode(void) {
+imu_err_t imu_enter_high_accuracy_mode(void) {
     int cmd_len = sizeof(high_accuracy_cmds) / sizeof(qmi8658_cmd_t);
     return execute_sequential_cmds(high_accuracy_cmds, cmd_len);
 }
@@ -229,10 +243,13 @@ imu_err_t imu_enter_low_power_accel_only_mode(void) {
 }
 
 imu_err_t imu_enter_low_power_mode(void) {
-    imu_err_t success = IMU_OK;
-    success = imu_disable_accelerometer();
+    uint8_t data = 0;
+    imu_err_t success = imu_interface.read(imu_interface.intf_ptr, QMI8658A_REG_CTRL7, 
+                                           &data, sizeof(uint8_t));
     if(success != IMU_OK) return success;
-    success = imu_disable_gyro();
+    data = data & (~QMI8658A_CTRL7_AEN_MASK);
+    data = data & (~QMI8658A_CTRL7_GEN_MASK);
+    success = imu_interface.write(imu_interface.intf_ptr, QMI8658A_REG_CTRL7, &data, sizeof(uint8_t));
     return success;
 }
 
@@ -312,17 +329,19 @@ imu_err_t imu_enable_pedometer(void) {
     success = ctrl9_handshake(QMI8658A_CTRL9_CMD_CONFIGURE_PEDOMETER);
     if(success != IMU_OK) return success;
 
+    if(accel_enabled) success = imu_enable_accelerometer();
+    else ESP_LOGW(TAG, "Pedometer enabled but accelerometer is off, step counting wont work");
+    if(success != IMU_OK) return success;
+    if(gyro_enabled) success = imu_enable_gyro();
+    if(success != IMU_OK) return success;
+    vTaskDelay(pdMS_TO_TICKS(120));
+
     data = 0;
     success = imu_interface.read(imu_interface.intf_ptr, QMI8658A_REG_CTRL8, &data, sizeof(uint8_t));
     if(success != IMU_OK) return success;
     data = data | QMI8658A_CTRL8_PEDO_EN_MASK;
     success = imu_interface.write(imu_interface.intf_ptr, QMI8658A_REG_CTRL8, &data, sizeof(uint8_t));
-    if(success != IMU_OK) return success;
 
-    if(accel_enabled) success = imu_enable_accelerometer();
-    else ESP_LOGW(TAG, "Pedometer enabled but accelerometer is off, step counting wont work");
-    if(success != IMU_OK) return success;
-    if(gyro_enabled) success = imu_enable_gyro();
     return success;
 }
 
@@ -366,13 +385,12 @@ imu_err_t imu_read_fifo_buffer(uint8_t* buff, size_t* len) {
     uint8_t fifo_ctrl = 0;
     success = imu_interface.read(imu_interface.intf_ptr, QMI8658A_REG_FIFO_CTRL, &fifo_ctrl, sizeof(uint8_t));
     if(success != IMU_OK) return success;
-    fifo_ctrl |= QMI8658A_FIFO_CTRL_RD_MODE_MASK;
-    success = imu_interface.write(imu_interface.intf_ptr, QMI8658A_REG_FIFO_CTRL, &fifo_ctrl, sizeof(uint8_t));
+    success = ctrl9_handshake(QMI8658A_CTRL9_CMD_REQ_FIFO);
     if(success != IMU_OK) return success;
     success = imu_interface.read_fifo(imu_interface.intf_ptr, QMI8658A_REG_FIFO_DATA, buff, read_len);
     if(success != IMU_OK) return success;
     *len = read_len;
-    fifo_ctrl &= ~QMI8658A_FIFO_CTRL_RD_MODE_MASK; 
+    fifo_ctrl &= ~QMI8658A_FIFO_CTRL_RD_MODE_MASK;
     success = imu_interface.write(imu_interface.intf_ptr, QMI8658A_REG_FIFO_CTRL, &fifo_ctrl, sizeof(uint8_t));
     return success;
 }
@@ -396,8 +414,9 @@ imu_err_t imu_setup_wake_on_motion(void) {
     bool accel_enabled = (data & QMI8658A_CTRL7_AEN_MASK) == QMI8658A_CTRL7_AEN_MASK;
     bool gyro_enabled = (data & QMI8658A_CTRL7_GEN_MASK) == QMI8658A_CTRL7_GEN_MASK;
     success = imu_enter_low_power_mode();
+    vTaskDelay(pdMS_TO_TICKS(120));
     if(success != IMU_OK) return success;
-    uint8_t wom_threshold = 3;
+    uint8_t wom_threshold = 100;
     uint8_t wom_int = (0b00 << 6) | 15;
     success = imu_interface.write(imu_interface.intf_ptr, QMI8658A_REG_CAL1_L, 
                                  &wom_threshold, sizeof(uint8_t));
@@ -552,6 +571,16 @@ imu_err_t imu_detect_no_motion(bool* is_no_motion) {
     success = imu_interface.read(imu_interface.intf_ptr, QMI8658A_REG_STATUS1, &status1, sizeof(uint8_t));
     if(success != IMU_OK) return success;
     *is_no_motion = (status1 & QMI8658A_STATUS1_NO_MOTION) == QMI8658A_STATUS1_NO_MOTION;
+    return success;
+}
+
+imu_err_t imu_detect_motion(bool* is_no_motion) {
+    if(!is_no_motion) return IMU_INVALID_CONFIG;
+    imu_err_t success = IMU_OK;
+    uint8_t status1 = 0;
+    success = imu_interface.read(imu_interface.intf_ptr, QMI8658A_REG_STATUS1, &status1, sizeof(uint8_t));
+    if(success != IMU_OK) return success;
+    *is_no_motion = (status1 & QMI8658A_STATUS1_WOM) == QMI8658A_STATUS1_WOM;
     return success;
 }
 
