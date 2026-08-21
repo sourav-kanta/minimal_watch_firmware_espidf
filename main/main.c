@@ -15,12 +15,14 @@
 #include <notification_manager.h>
 #include <storage_manager.h>
 #include <esp_log.h>
+#include <sensor_manager.h>
 
 void app_main(void)
 {
     init_locks();
     event_manager_init();
     runtime_manager_init();
+    sensor_manager_init();
     storage_manager_init();    
     gpio_manager_init();
     esp_err_t err = nvs_flash_init();
@@ -40,6 +42,6 @@ void app_main(void)
     notification_manager_init();
 
     while(1) {
-        vTaskDelay(portMAX_DELAY); 
+        vTaskDelay(portMAX_DELAY);
     }
 }

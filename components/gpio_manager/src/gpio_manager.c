@@ -97,6 +97,20 @@ void gpio_manager_init(void) {
     if (err == ESP_ERR_INVALID_STATE) {
         ESP_LOGW(TAG, "GPIO ISR service already installed.");
     }
+
+    gpio_config_t ps_pin_conf = {
+        .pin_bit_mask = (1ULL << SYSTEM_TPS_PS_PIN),
+        .mode = GPIO_MODE_OUTPUT,
+        .pull_up_en = GPIO_PULLUP_DISABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type = GPIO_INTR_DISABLE 
+    };
+    err = gpio_config(&ps_pin_conf);
+    if(err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to configure TPS PS pin : %s", esp_err_to_name(err));
+    }
+    gpio_set_level(SYSTEM_TPS_PS_PIN, 1);
+
     gpio_config_t wakeup_gpio_conf = {
         .pin_bit_mask = (1ULL << ENCODER_KEY_OK),
         .intr_type = GPIO_INTR_DISABLE,

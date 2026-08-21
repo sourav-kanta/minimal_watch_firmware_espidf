@@ -7,7 +7,7 @@
 #include <gpio_pins.h>
 #include <esp_memory_utils.h>
 
-#define MAX_SINGLE_REG_DATA_LEN 4
+#define MAX_SINGLE_REG_DATA_LEN 3
 
 static spi_device_handle_t spi_device = NULL;
 static const char* TAG = "ESP32_IMU_Driver";
@@ -18,16 +18,28 @@ static imu_err_t esp32_imu_reg_read(void* intf_ptr, uint8_t reg_addr, uint8_t *d
     spi_device_handle_t spi = (spi_device_handle_t)intf_ptr;
     assert(spi);
     spi_transaction_t transaction = {
-        .addr = reg_addr | (1<<7),
-        .length = len * sizeof(uint8_t) * 8,
-        .rxlength = len * sizeof(uint8_t) * 8,
-        .flags = SPI_TRANS_USE_RXDATA,
+        .length = (1+len) * sizeof(uint8_t) * 8,
+        .rxlength = (1+len) *  sizeof(uint8_t) * 8,
+        .flags = SPI_TRANS_USE_RXDATA | SPI_TRANS_USE_TXDATA
     };
+
+    memset(transaction.tx_data, 0, 8);
+    transaction.tx_data[0] = reg_addr | 0x80;
+
     esp_err_t ret = spi_device_transmit(spi, &transaction);
+    ESP_LOGD(TAG, "Read RX: %02X %02X %02X %02X",
+        transaction.rx_data[0],
+        transaction.rx_data[1],
+        transaction.rx_data[2],
+        transaction.rx_data[3]);
+    ESP_LOGD(TAG, "Read TX: %02X %02X %02X %02X",
+        transaction.tx_data[0],
+        transaction.tx_data[1],
+        transaction.tx_data[2],
+        transaction.tx_data[3]);
+
     if(ret == ESP_OK) {
-        for(int i = 0; i < len; i++) {
-            data[i] = transaction.rx_data[i];
-        }
+        memcpy(data, &transaction.rx_data[1], len);
         return IMU_OK;
     }
     return IMU_FAILED;
@@ -39,11 +51,19 @@ static imu_err_t esp32_imu_reg_write(void* intf_ptr, uint8_t reg_addr, const uin
     spi_device_handle_t spi = (spi_device_handle_t)intf_ptr;
     assert(spi);
     spi_transaction_t transaction = {
-        .addr = reg_addr & (~(1<<7) & 0xFF),
-        .length = len * sizeof(uint8_t) * 8,
-        .flags = SPI_TRANS_USE_TXDATA,
+        .length = (1+len) * sizeof(uint8_t) * 8,
+        .flags = SPI_TRANS_USE_TXDATA
     };
-    memcpy(transaction.tx_data, data, len);
+
+    memset(transaction.tx_data, 0, 8);
+    transaction.tx_data[0] = reg_addr & (0x7F);
+    memcpy(&transaction.tx_data[1], data, len);
+
+    ESP_LOGD(TAG, "Write TX: %02X %02X %02X %02X",
+     transaction.tx_data[0],
+     transaction.tx_data[1],
+     transaction.tx_data[2],
+     transaction.tx_data[3]);
     return (spi_device_transmit(spi, &transaction) == ESP_OK) ? IMU_OK : IMU_FAILED;
 }
 
@@ -57,11 +77,13 @@ static imu_err_t esp32_imu_fifo_read(void* intf_ptr, uint8_t reg_addr, uint8_t *
         return IMU_FAILED;
     }
     spi_transaction_t transaction = {
-        .addr = reg_addr | (1<<7), 
-        .length = len * 8,
-        .rxlength = len * 8,       
+        .length = (1+len) * 8,
+        .rxlength = (1+len) * 8,       
         .rx_buffer = data,
+        .tx_buffer = data,
     };
+    data[0] = reg_addr | 0x80;
+
     esp_err_t ret = spi_device_transmit(spi, &transaction);
     if(ret == ESP_OK) {
         return IMU_OK;
@@ -85,9 +107,11 @@ void esp32_imu_init(const imu_params_t* params, qmi8658_bus_t *bus) {
         .clock_speed_hz = params->freq,
         .mode = 0,
         .spics_io_num = params->CS_PIN,
-        .address_bits = 8,
-        .cs_ena_posttrans = 2,
-        .queue_size = 5
+        .address_bits = 0,
+        .cs_ena_pretrans = 1,
+        .cs_ena_posttrans = 1,
+        .input_delay_ns = 50,
+        .queue_size = 5,
     };
     ret = spi_bus_add_device(SENSOR_IMU_HOST, &dev_cfg, &spi_device);
     ESP_ERROR_CHECK(ret);

@@ -41,6 +41,7 @@ imu_err_t imu_read_fifo_buffer(uint8_t* out_buf, size_t *length);
 imu_err_t imu_reset_fifo_buffer(void);
 
 imu_err_t imu_setup_wake_on_motion(void);
+imu_err_t imu_detect_motion(bool*);
 imu_err_t imu_disable_wake_on_motion(void);
 imu_err_t imu_setup_detect_no_motion(void);
 imu_err_t imu_detect_no_motion(bool*);
