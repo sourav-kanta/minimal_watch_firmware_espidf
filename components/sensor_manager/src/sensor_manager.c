@@ -1,5 +1,6 @@
 #include <sensor_manager.h>
 #include <imu_driver.h>
+#include <bmp180_driver.h>
 #include <event_manager.h>
 #include <runtime_manager.h>
 #include <gpio_pins.h>
@@ -9,13 +10,13 @@
 static const char* TAG = "Sensor manager";
 static DRAM_ATTR uint8_t imu_fifo[800] __attribute__((aligned(32)));
 
-static void fetch_and_process_imu_fifo(void *arg, runtime_abort_flag_t* flag) {
-    int temp;
-    imu_err_t imu_err = imu_read_temperature(&temp);
+static void process_sensor_data(void *arg, runtime_abort_flag_t* flag) {
+    int temp_scaled_100;
+    imu_err_t imu_err = imu_read_temperature(&temp_scaled_100);
     if(imu_err != IMU_OK) {
         ESP_LOGE(TAG, "Imu read temp failed");
     }
-    ESP_LOGI(TAG, "Temp = %d", temp); 
+    ESP_LOGI(TAG, "IMU Temp = %d", temp_scaled_100); 
     
     size_t samples = sizeof(imu_fifo);
     imu_err = imu_read_fifo_buffer(imu_fifo, &samples);
@@ -23,12 +24,34 @@ static void fetch_and_process_imu_fifo(void *arg, runtime_abort_flag_t* flag) {
         ESP_LOGE(TAG, "Fifo read failed");
     }
 
+    // ------------- Test BMP driver -------------
+    int bmp_temp_scaled_10;
+    int altitude_scaled_10;
+
+    // bool success = bmp180_read_temp(&bmp_temp_scaled_10);
+    // if(!success) ESP_LOGE(TAG, "Failed to read BMP180 temp");
+    //ESP_LOGI(TAG, "BMP180 Temp = %d", bmp_temp_scaled_10);
+    
+    bool success = bmp180_read_temp_and_altitude(&bmp_temp_scaled_10, &altitude_scaled_10, 
+                                            BMP180_SENSOR_MODE_HIGH_RES);
+    if(!success) ESP_LOGE(TAG, "Failed to read BMP180 altitude");
+
+    ESP_LOGI(TAG, "BMP180 Temp = %d, Altitude = %d", bmp_temp_scaled_10, altitude_scaled_10);
+   
+    if(*flag == true) {
+        ESP_LOGW(TAG, "Used up time quota for work window. Skipping IMU work");
+        memset(imu_fifo, 0, sizeof(imu_fifo));
+        return;
+    }
+    // ------------------ End Test -------------------------
+
     // 2 bytes each and 3 words for a single read
     samples = (samples / 3) / 2; 
     ESP_LOGI(TAG, "Read %u FIFO samples", samples);
     
     // Data starts from index 1 and max samples configured 128
-    // IMU on board is rotated -90 degree so x=y y=-x
+    // IMU on board is rotated -90 degree and soldered on the backside
+    // so x=y y=-x (z is fine as imu measures normal)
     for(int i=samples*6; i>=1; i=i-6) {
         uint8_t raw_z_h = imu_fifo[i];
         uint8_t raw_z_l = imu_fifo[i-1];
@@ -50,9 +73,9 @@ static void fetch_and_process_imu_fifo(void *arg, runtime_abort_flag_t* flag) {
     memset(imu_fifo, 0, sizeof(imu_fifo));
 } 
 
-static void schedule_imu_work(const event_t* event) {
+static void schedule_sensor_work(const event_t* event) {
     runtime_work_item_t imu_work = {
-        .handler = fetch_and_process_imu_fifo,
+        .handler = process_sensor_data,
         .type = WORK_TYPE_SYSTEM,
     };
     bool success = schedule_system_work(&imu_work);
@@ -68,6 +91,7 @@ void sensor_manager_disarm_wakup_interrupt(void) {
 }
 
 void sensor_manager_init(void) {
+    bmp180_init();
     imu_err_t imu_err = IMU_OK;
     imu_params_t params = {
         .CS_PIN = SENSOR_IMU_CS,
@@ -81,13 +105,14 @@ void sensor_manager_init(void) {
     if(imu_err != IMU_OK) {
         ESP_LOGE(TAG, "Imu init failed");
     }
-    event_subscribe(EVENT_WORK_TICK, schedule_imu_work);
+    event_subscribe(EVENT_WORK_TICK, schedule_sensor_work);
 }
 
 void sensor_manager_deinit(void) { 
-    event_unsubscribe(EVENT_WORK_TICK, schedule_imu_work);
+    event_unsubscribe(EVENT_WORK_TICK, schedule_sensor_work);
     imu_err_t err = imu_enter_low_power_mode();
     if(err != IMU_OK) {
         ESP_LOGE(TAG, "Failed to switch to lowpower mode");
     }
+    bmp180_deinit();
 }

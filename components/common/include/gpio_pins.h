@@ -24,8 +24,8 @@
 
 #define SENSOR_BATTERY_READ_PIN             7
 #define SENSOR_BATTERY_READ_EN_PIN          40
-//#define SENSOR_I2C_SDA_PIN                  21
-//#define SENSOR_I2C_SCL_PIN                  48
+#define SENSOR_I2C_SDA_PIN                  21
+#define SENSOR_I2C_SCL_PIN                  48
 #define SENSOR_IMU_CS                       38
 #define SENSOR_IMU_SCL                      39
 #define SENSOR_IMU_MOSI                     41
