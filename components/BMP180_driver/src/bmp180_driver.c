@@ -37,7 +37,11 @@ typedef struct {
 static const char* TAG = "BMP180 Driver";
 static bmp180_bus_t esp32s3_bmp_driver;
 static calibration_regs_t calibration_regs;
+static float sea_level_pa = 100300.0f;
 
+void bmp180_update_sea_level_pa(float pa) {
+    sea_level_pa = pa;
+}
 
 bool bmp180_read_temp(int *temp_scaled_10) {
     if(temp_scaled_10 == NULL) {
@@ -45,9 +49,10 @@ bool bmp180_read_temp(int *temp_scaled_10) {
         return false;
     }
     
-    // Calculate compensated pressure
+    // Calculate compensated temperature
     uint8_t cmd = BMP180_CMD_READ_TEMP;
-    esp32s3_bmp_driver.write_reg(esp32s3_bmp_driver.handle, BMP180_REG_CONTROL, &cmd, sizeof(cmd));
+    bool success = esp32s3_bmp_driver.write_reg(esp32s3_bmp_driver.handle, BMP180_REG_CONTROL, &cmd, sizeof(cmd));
+    if(!success) return false;
     TickType_t wait_ticks = pdMS_TO_TICKS(5) == 0 ? 1 : pdMS_TO_TICKS(5);
     vTaskDelay(wait_ticks);
     uint8_t raw_bytes[3];
@@ -69,9 +74,10 @@ bool bmp180_read_temp_and_altitude(int *temp_scaled_10, int *alt_meters_scaled_1
         return false;
     }
     
-    // Calculate compensated pressure
+    // Calculate compensated temperature
     uint8_t cmd = BMP180_CMD_READ_TEMP;
-    esp32s3_bmp_driver.write_reg(esp32s3_bmp_driver.handle, BMP180_REG_CONTROL, &cmd, sizeof(cmd));
+    bool success = esp32s3_bmp_driver.write_reg(esp32s3_bmp_driver.handle, BMP180_REG_CONTROL, &cmd, sizeof(cmd));
+    if(!success) return false;
     TickType_t wait_ticks = pdMS_TO_TICKS(5) == 0 ? 1 : pdMS_TO_TICKS(5);
     vTaskDelay(wait_ticks);
     uint8_t raw_bytes[3];
@@ -125,7 +131,6 @@ bool bmp180_read_temp_and_altitude(int *temp_scaled_10, int *alt_meters_scaled_1
     X1 = (X1 * 3038) >> 16;
     X2 = (-7357 * p) >> 16;
     p = p + ((X1 + X2 + 3791) >> 4);
-    float sea_level_pa = 101325.0f;
     *alt_meters_scaled_10 = (int)((44330.0f * (1.0f - powf((float)p / sea_level_pa, 0.1902949f)))*10);
     
     return true;    
@@ -155,10 +160,14 @@ static void read_and_store_calibration_data_if_required(void) {
         return;
     }
 
-    esp32s3_bmp_driver.read_reg(esp32s3_bmp_driver.handle, BMP180_REG_AC1_H, cal_reg, sizeof(cal_reg)); 
+    bool success = esp32s3_bmp_driver.read_reg(esp32s3_bmp_driver.handle, BMP180_REG_AC1_H, cal_reg, sizeof(cal_reg)); 
+    if(!success) {
+        ESP_LOGE(TAG, "Failed to read calibration data");
+        return;
+    }
     populate_calibration_regs(cal_reg);
 
-    bool success = storage_manager_save_key(CORE_SYSTEM_APP_ID, "BMP180", cal_reg, sizeof(cal_reg));
+    success = storage_manager_save_key(CORE_SYSTEM_APP_ID, "BMP180", cal_reg, sizeof(cal_reg));
     if(!success) {
         ESP_LOGE(TAG, "Failed to store calibration values");
     }
@@ -167,13 +176,15 @@ static void read_and_store_calibration_data_if_required(void) {
 void bmp180_init(void) {
     bmp180_configure_i2c(&esp32s3_bmp_driver);
     uint8_t dev = 0;
-    esp32s3_bmp_driver.read_reg(esp32s3_bmp_driver.handle, BMP180_REG_CHIP_ID, &dev, sizeof(dev));
-    if(dev == BMP180_CHIP_ID_VALUE) {
+    bool success = esp32s3_bmp_driver.read_reg(esp32s3_bmp_driver.handle, BMP180_REG_CHIP_ID, &dev, sizeof(dev));
+    if(success && dev == BMP180_CHIP_ID_VALUE) {
         ESP_LOGI(TAG, "Initialized BMP180 driver successfully");
         read_and_store_calibration_data_if_required();
     }
     else {
-        ESP_LOGI(TAG, "Error in initializing BMP180 driver");
+        ESP_LOGE(TAG, "Failed to initialize BMP180, chip ID: 0x%02X", dev);
+        bmp180_release_i2c(&esp32s3_bmp_driver);
+        memset(&esp32s3_bmp_driver, 0, sizeof(esp32s3_bmp_driver));
     }
 }
 
