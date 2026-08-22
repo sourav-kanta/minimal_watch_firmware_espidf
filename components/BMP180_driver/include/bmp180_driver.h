@@ -11,6 +11,7 @@ typedef enum {
 
 void bmp180_init(void);
 void bmp180_deinit(void);
+void bmp180_update_sea_level_pa(float pa);
 bool bmp180_read_temp(int *temp_scaled_10);
 bool bmp180_read_temp_and_altitude(int* temp_scaled_10, int *alt_meters_scaled_10, bmp180_sensor_mode_t mode);
 
