@@ -213,9 +213,9 @@ void __wrap_init_display(void (*cb)(void)) {
 }
 
 void __wrap_display_draw_bitmap(int x1, int y1, int x2, int y2, const void* pixels) {
-     if (!qemu_mock_panel_handle)
+    if (!qemu_mock_panel_handle)
         return;
-
+    
     const uint16_t *src = pixels;
 
     int width = x2 - x1;
@@ -242,7 +242,7 @@ void __wrap_display_draw_bitmap(int x1, int y1, int x2, int y2, const void* pixe
         }
     }
 
-    esp_lcd_panel_draw_bitmap(qemu_mock_panel_handle, x1, y1, x2, y2, argb_buffer);
+    esp_lcd_panel_draw_bitmap(qemu_mock_panel_handle, x1-2, y1-1, x2-2, y2-1, argb_buffer);
     callback();
 }
 
@@ -291,4 +291,9 @@ esp_err_t __wrap_ledc_update_duty(ledc_mode_t speed_mode, ledc_channel_t channel
     (void)speed_mode;
     (void)channel;
     return ESP_OK;
+}
+
+void __wrap_sensor_manager_init(void) {
+    printf("[QEMU MOCK] Sensor manager bypassed.\n");
+    return;
 }

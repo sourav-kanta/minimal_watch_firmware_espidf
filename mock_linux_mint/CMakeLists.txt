@@ -23,4 +23,5 @@ target_link_libraries(${COMPONENT_LIB} INTERFACE
     "-Wl,--wrap=encoder_deinit"
     "-Wl,--wrap=ledc_set_duty"
     "-Wl,--wrap=ledc_update_duty"
+    "-Wl,--wrap=sensor_manager_init"
 )
