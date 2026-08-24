@@ -22,7 +22,7 @@ static void assign_handlers(notification_t* notification) {
     }
 }
 
-void receive_notification(const event_t* event) {
+static void receive_notification(const event_t* event) {
     if((event->payload_len != sizeof(notification_t)) || event->data == NULL) {
         ESP_LOGE(TAG, "Invalid notification received, skipping");
         return;
@@ -43,7 +43,7 @@ void receive_notification(const event_t* event) {
 void notification_manager_init(void) {                                                      
     if(initialized) return;                                                                 
     total_notifications = 0;                                                                
-    event_subscribe(EVENT_NOTIFICATION_RECEIVED, receive_notification);                     
+    event_subscribe(EVENT_NOTIFICATION_RECEIVED, receive_notification);
     initialized = true;                                                                     
 }                                                                                           
 

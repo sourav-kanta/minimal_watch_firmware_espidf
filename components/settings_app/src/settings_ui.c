@@ -7,8 +7,6 @@
 #include <app_utils.h>
 #include <lvgl.h>
 #include <global_locks.h>
-#include <listview.h>
-#include <popup_listview.h>
 #include <common_consts.h>
 #include <common_apis.h>
 
@@ -16,7 +14,6 @@
 
 static lv_obj_t* base_container = NULL;
 static lv_obj_t* parent_container = NULL;
-static const int divider_width = 1;
 static const char* TAG = "Settings app";
 static popup_registry_t timeout_popup_registry;
 static popup_registry_t brightness_popup_registry;
@@ -54,13 +51,6 @@ static listview_t list_items[] = {
         .title_click_cb = NULL
     },
 };
-
-static void draw_horizoantal_divider(lv_obj_t* parent) {
-    lv_obj_t* div = lv_obj_create(parent);
-    lv_obj_set_size(div, lv_pct(100), divider_width);
-    lv_obj_align(div, LV_ALIGN_CENTER, 0, 0);
-    lv_obj_set_style_bg_color(div, COLOR_THEME_FOCUS_BG, LV_STATE_DEFAULT); 
-}
 
 static listview_t *wf_items = NULL;
 

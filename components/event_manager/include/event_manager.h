@@ -3,6 +3,24 @@
 
 #include <common_types.h>
 
+typedef enum {
+    EVENT_UI_INACTIVE,
+    EVENT_WATCHFACE_UPDATE,
+    EVENT_WORK_TICK,
+    EVENT_APP_WORK_SCHEDULE,
+    EVENT_NOTIFICATION_RECEIVED,
+    EVENT_BLE_REQUEST,
+    EVENT_TIME_SYNC,
+    EVENT_WEATHER_SYNC,
+    EVENT_COUNT
+} event_id_t;
+
+typedef struct {
+    event_id_t ev;
+    uint32_t payload_len;
+    void* data;
+} event_t;
+
 typedef void (*event_handler_t)(const event_t *event);
 
 bool event_manager_init(void);

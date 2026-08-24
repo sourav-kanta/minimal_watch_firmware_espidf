@@ -1,8 +1,10 @@
 #include <lvgl.h>
 #include <esp_log.h>
 #include <ui_utils.h>
+#include <ui_theme.h>
 
 static const char* TAG = "LVGL helper";
+static const int divider_width = 1;
 
 void remove_shadow_and_outline(lv_obj_t* obj) {
     lv_obj_set_style_border_width(obj, 0, LV_PART_MAIN);
@@ -21,5 +23,12 @@ void make_obj_navigable(lv_obj_t* obj) {
     }
     lv_group_add_obj(lv_group_get_default(), obj);
     lv_obj_add_flag(obj, LV_OBJ_FLAG_EVENT_BUBBLE);
+}
+
+void draw_horizoantal_divider(lv_obj_t* parent) {
+    lv_obj_t* div = lv_obj_create(parent);
+    lv_obj_set_size(div, lv_pct(100), divider_width);
+    lv_obj_align(div, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_set_style_bg_color(div, COLOR_THEME_FOCUS_BG, LV_STATE_DEFAULT); 
 }
 

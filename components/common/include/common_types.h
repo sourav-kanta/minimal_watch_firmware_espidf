@@ -5,24 +5,6 @@
 #include <common_consts.h>
 
 typedef enum {
-    EVENT_UI_INACTIVE,
-    EVENT_WATCHFACE_UPDATE,
-    EVENT_WORK_TICK,
-    EVENT_APP_WORK_SCHEDULE,
-    EVENT_NOTIFICATION_RECEIVED,
-    EVENT_BLE_REQUEST,
-    EVENT_TIME_SYNC,
-    EVENT_WEATHER_SYNC,
-    EVENT_COUNT
-} event_id_t;
-
-typedef struct {
-    event_id_t ev;
-    uint32_t payload_len;
-    void* data;
-} event_t;
-
-typedef enum {
     UPDATE_SYSTEM_TIME,
     UPDATE_SYSTEM_WEATHER,
     DATED_WEATHER_QUERY,
@@ -53,7 +35,6 @@ typedef struct {
     void (*action_handler)(void);
     void (*dismiss_handler)(unsigned int);
 } notification_t;
-
 
 typedef enum {
     DATED_WEATHER_REQUEST
@@ -93,10 +74,5 @@ typedef struct {
     uint32_t expires_at;
     hourly_weather_t hourly_today[24];
 } weather_sync_t;
-
-typedef struct {
-    time_sync_t time_state;
-    weather_sync_t weather_state;
-} watch_state_t;
 
 #endif /* COMMON_TYPES_H */
