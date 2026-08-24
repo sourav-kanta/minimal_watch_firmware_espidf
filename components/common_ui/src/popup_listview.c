@@ -2,10 +2,7 @@
 #include <ui_theme.h>
 #include <ui_utils.h>
 #include <global_locks.h>
-#include <listview.h>
 #include <esp_log.h>
-
-#include <popup_listview.h>
 
 static const int divider_width = 1;
 static const char* TAG = "Popup Listview";
