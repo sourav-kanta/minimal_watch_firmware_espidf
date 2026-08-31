@@ -12,11 +12,13 @@ typedef struct {
 typedef struct {
     state_entry_t time;
     state_entry_t weather;
+    state_entry_t alarms;
 } state_registry_t;
 
 typedef struct {
     time_sync_t time_state;
     weather_sync_t weather_state;
+    alarm_sync_t alarms;    
 } watch_state_t;
 
 #endif /* STATE_REGISTRY_H */

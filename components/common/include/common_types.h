@@ -75,4 +75,22 @@ typedef struct {
     hourly_weather_t hourly_today[24];
 } weather_sync_t;
 
+typedef enum {
+    ALARM_TYPE_GLOBAL,
+    ALARM_TYPE_WATCH,
+    ALARM_TYPE_INVALID
+}alarm_type_t;
+
+typedef struct {
+    uint32_t epoch;
+    alarm_type_t type;
+    bool sync_with_phone;
+} alarm_t;
+
+typedef struct {
+    alarm_t alarms[MAX_WATCH_ALARMS];
+    uint8_t n_alarms;
+    uint8_t valid;
+} alarm_sync_t;
+
 #endif /* COMMON_TYPES_H */

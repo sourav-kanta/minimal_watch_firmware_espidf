@@ -8,4 +8,8 @@ void ui_on(void);
 void ui_sleep(void);
 void ui_resume(void);
 
+void ui_manager_acquire_wakelock(void);
+void ui_manager_release_wakelock(void);
+bool ui_manager_is_wake_locked(void);
+
 #endif /* UI_MANAGER_H */

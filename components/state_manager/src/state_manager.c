@@ -1,10 +1,12 @@
 #include <esp_log.h>
 #include <common_types.h>
+#include <common_consts.h>
 #include <esp_attr.h>
 #include <state_registry.h>
 #include <event_manager.h>
 #include <string.h>
 #include <esp_timer.h>
+#include <alarm_manager_internal.h>
 
 #include <state_manager.h>
 
@@ -31,6 +33,9 @@ static void update_time_state_cb(const event_t* event) {
     memcpy(&watch_state.time_state, &sync_time, sizeof(time_sync_t));
     state_request_complete(&state_registry.time);
     ESP_LOGI(TAG, "Updated system time");
+
+    // Revalidate all alarms
+    alarm_manager_revalidate();
 }
 
 static void update_weather_state_cb(const event_t* event) {
@@ -43,16 +48,27 @@ static void update_weather_state_cb(const event_t* event) {
 }
 
 void state_manager_init(void) {
+    // Reset every thing on cold boot with unsynced time
     if(watch_state.time_state.valid != 1) {
         ESP_LOGW(TAG, "Time is invalid, wiping state");
         memset(&watch_state, 0, sizeof(watch_state_t));
         memset(&state_registry, 0, sizeof(state_registry_t));
     }
+    // Clear expired weather data on hot or cold boot
     if(get_epoch_time() > watch_state.weather_state.expires_at) {
         ESP_LOGW(TAG, "Weather is invalid, wiping weather data");
         memset(&watch_state.weather_state, 0, sizeof(weather_sync_t));
         memset(&state_registry.weather, 0, sizeof(state_entry_t));
     }
+    // Clear garbage on cold boot
+    if(watch_state.alarms.valid != 1 || watch_state.alarms.n_alarms > MAX_WATCH_ALARMS) {
+        memset(&watch_state.alarms, 0, sizeof(alarm_sync_t));
+        memset(&state_registry.alarms, 0, sizeof(state_entry_t));
+        watch_state.alarms.valid = 1; 
+    }
+
+    alarm_manager_init(&watch_state.alarms);
+
     bool success = event_subscribe(EVENT_TIME_SYNC, update_time_state_cb);
     assert(success);
     success = event_subscribe(EVENT_WEATHER_SYNC, update_weather_state_cb);
@@ -91,7 +107,8 @@ void state_manager_init(void) {
 
 void state_manager_deinit(void) {
     event_unsubscribe(EVENT_TIME_SYNC, update_time_state_cb);
-    event_unsubscribe(EVENT_WEATHER_SYNC, update_weather_state_cb);    
+    event_unsubscribe(EVENT_WEATHER_SYNC, update_weather_state_cb);
+    alarm_manager_deinit();    
 }
 
 uint32_t get_epoch_time(void) {
