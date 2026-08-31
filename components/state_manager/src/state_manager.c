@@ -106,9 +106,9 @@ void state_manager_init(void) {
 }
 
 void state_manager_deinit(void) {
+    alarm_manager_deinit();    
     event_unsubscribe(EVENT_TIME_SYNC, update_time_state_cb);
     event_unsubscribe(EVENT_WEATHER_SYNC, update_weather_state_cb);
-    alarm_manager_deinit();    
 }
 
 uint32_t get_epoch_time(void) {

@@ -150,9 +150,9 @@ void power_manager_init(void) {
 }
 
 void power_manager_deinit(void) {
+    event_unsubscribe(EVENT_ALARM_TRIGGERED, alarm_triggered_cb);
     event_unsubscribe(EVENT_UI_INACTIVE, ui_inactive_event_cb);
     event_unsubscribe(EVENT_WORK_TICK, sleep_debug_cb);
-    event_unsubscribe(EVENT_ALARM_TRIGGERED, alarm_triggered_cb);
     power_cmd_t cmd = POWER_CMD_SHUTDOWN;
     xQueueSend(power_queue, &cmd, 0);
     initialized = false;

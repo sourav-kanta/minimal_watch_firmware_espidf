@@ -102,6 +102,7 @@ void resume_lvgl(void) {
         ESP_LOGE(TAG, "Critical : LVGL is already running");
     }
     else {
+        assert(check_wakelock_func);
         start_lvgl_thread(check_wakelock_func);
     }
 }
