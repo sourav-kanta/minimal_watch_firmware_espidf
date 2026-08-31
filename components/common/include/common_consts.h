@@ -17,6 +17,7 @@
 #define MAX_NOTIFICATION_TITLE_SIZE     14
 #define MAX_NOTIFICATION_BODY_SIZE      100
 #define BT_DEVICE_NAME                  "MINWH"
+#define MAX_WATCH_ALARMS                5
 
 #define WATCHFACE_SYSTEM_APP_ID         1
 #define CORE_SYSTEM_APP_ID              2

@@ -8,6 +8,10 @@
 #include <wf_manager.h>
 #include <app_picker_ui.h>
 #include <notification_ui.h>
+#include <event_screens.h>
+#include <ui_base.h>
+#include <time.h>
+#include <esp_log.h>
 
 static const char* TAG = "Root UI";
 static lv_obj_t *root_screen;
@@ -186,6 +190,7 @@ void suspend_base_screen(void) {
         case NOTIFY :
             break;
         case APP :
+            // Implement onStop
             break;
         default :
             break;
@@ -200,8 +205,53 @@ void resume_base_screen(void) {
         case NOTIFY :
             break;
         case APP :
+            // Implement onResume
             break;
         default :
             break;
     }
+}
+
+void handle_base_screen_event(ui_base_screen_event_t* ui_event) {
+    lv_obj_t* parent = NULL;
+    switch(curr_watch_state) {
+        case WATCHFACE :
+            parent = wf_page;
+            break;
+        case NOTIFY :
+            parent = notify_page;
+            break;
+        case APP :
+            parent = app_page;
+            break;
+        default :
+            break;
+    }
+    if(parent == NULL) return;
+    if(!ui_event) {
+        ESP_LOGE(TAG, "Invalid event");
+        return;
+    }
+    switch(ui_event->event_type) {
+        case BASE_SCREEN_EVENT_ALARM : {
+            suspend_base_screen();
+            date_time_t dt;
+            time_t time_val = (time_t) ui_event->data.alarm_data.epoch;
+            struct tm curr_time;
+            if (gmtime_r(&time_val, &curr_time) != NULL) {
+                dt.day = curr_time.tm_mday;
+                dt.month = curr_time.tm_mon + 1;
+                dt.year = curr_time.tm_year + 1900;
+                dt.hr = curr_time.tm_hour;
+                dt.min = curr_time.tm_min;
+                dt.sec = curr_time.tm_sec;
+                dt.d_week = curr_time.tm_wday;
+            }        
+            show_alarm_page(parent, &dt, ui_event->on_finish_event_callback);
+        }
+        break;
+        default :
+            ESP_LOGE(TAG, "Unknown event type"); 
+    }
+    
 }

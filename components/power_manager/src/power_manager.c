@@ -63,10 +63,23 @@ static void power_task_fn(void *arg)
     }
 }
 
+static void transition_to_ui_active(void) {
+    power_cmd_t new_cmd = POWER_CMD_UI_WAKE;
+    if (power_queue) {
+        (void)xQueueSend(power_queue, &new_cmd, 0);
+    }
+} 
+
 static void ui_inactive_event_cb(const event_t* event) {
     if(event->ev == EVENT_UI_INACTIVE) {
         power_cmd_t new_cmd = POWER_CMD_UI_SLEEP;
         xQueueSend(power_queue, &new_cmd, 0);
+    }
+}
+
+static void alarm_triggered_cb(const event_t* event) {
+    if(state != POWER_STATE_UI_ACTIVE) {
+        transition_to_ui_active();
     }
 }
 
@@ -78,10 +91,7 @@ static int light_sleep_exit_cb(int64_t sleep_us, void* arg) {
     sleep += sleep_us;
     esp_sleep_wakeup_cause_t cause = esp_sleep_get_wakeup_causes();
     if(cause & (1<<ESP_SLEEP_WAKEUP_GPIO)) {
-        power_cmd_t new_cmd = POWER_CMD_UI_WAKE;
-        if (power_queue) {
-            (void)xQueueSend(power_queue, &new_cmd, 0);
-        }
+        transition_to_ui_active();
     }
     return ESP_OK;
 }
@@ -133,11 +143,14 @@ void power_manager_init(void) {
     initialized = true;
     event_subscribe(EVENT_UI_INACTIVE, ui_inactive_event_cb);
     event_subscribe(EVENT_WORK_TICK, sleep_debug_cb);
-    tick_manager_generate_tick(TICK_WORK);    
+    event_subscribe(EVENT_ALARM_TRIGGERED, alarm_triggered_cb);
+    tick_manager_generate_tick(TICK_WORK);
+    state = POWER_STATE_UI_ACTIVE;    
     sleep = 0;                                
 }
 
 void power_manager_deinit(void) {
+    event_unsubscribe(EVENT_ALARM_TRIGGERED, alarm_triggered_cb);
     event_unsubscribe(EVENT_UI_INACTIVE, ui_inactive_event_cb);
     event_unsubscribe(EVENT_WORK_TICK, sleep_debug_cb);
     power_cmd_t cmd = POWER_CMD_SHUTDOWN;

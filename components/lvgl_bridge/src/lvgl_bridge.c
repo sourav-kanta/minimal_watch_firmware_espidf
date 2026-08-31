@@ -19,6 +19,7 @@ static DRAM_ATTR uint8_t disp_buf1[DISPLAY_LVGL_BUFFER_SIZE] __attribute__((alig
 static DRAM_ATTR uint8_t disp_buf2[DISPLAY_LVGL_BUFFER_SIZE] __attribute__((aligned(32)));
 static QueueHandle_t xinputQueue = NULL;
 static const int MAX_INPUTS = 10;
+static wakelock_check_func_t check_wakelock_func = NULL;
 
 static void lvgl_display_flush_cb(lv_display_t * display, const lv_area_t * area, uint8_t * px_map) {
     int offsetx1 = area->x1;
@@ -32,9 +33,11 @@ static void flush_done_cb(void) {
     lv_display_flush_ready(disp);
 }
 
-void init_lvgl(void) {
+void init_lvgl(lvgl_params_t* params) {
     lv_init();
     init_display(flush_done_cb);
+    check_wakelock_func = params->wakelock_check_func;
+    assert(check_wakelock_func);
     disp = lv_display_create(DISPLAY_LCD_H_RES, DISPLAY_LCD_V_RES);
     if (!disp) {
         ESP_LOGE(TAG, "Failed creating LVGL display, panic!");
@@ -58,7 +61,7 @@ void init_lvgl(void) {
         ESP_LOGE(TAG, "Critical : LVGL is already running");
     }
     else {
-        start_lvgl_thread();
+        start_lvgl_thread(check_wakelock_func);
     }
 }
 
@@ -76,7 +79,8 @@ void deinit_lvgl(void) {
         xinputQueue = NULL;
     }
     display_off();
-    deinit_display();    
+    deinit_display();
+    check_wakelock_func = NULL;
     ESP_LOGI("UI", "LVGL deinitialized.");
 }
 
@@ -98,7 +102,8 @@ void resume_lvgl(void) {
         ESP_LOGE(TAG, "Critical : LVGL is already running");
     }
     else {
-        start_lvgl_thread();
+        assert(check_wakelock_func);
+        start_lvgl_thread(check_wakelock_func);
     }
 }
 
