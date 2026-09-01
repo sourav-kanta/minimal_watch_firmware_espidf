@@ -3,24 +3,24 @@
 #include <ui_theme.h>
 #include <global_locks.h>
 #include <ui_utils.h>
-#include <lvgl.h>
 #include <ui_base.h>
+#include <wakelock_manager.h>
 
 static const lv_color_t COLOR_GOLD = { .red = 0xD4, .green = 0xAF, .blue = 0x37 };
 static lv_obj_t* background = NULL;
 static const uint32_t alarm_screen_timeout_sec = 30;
 static lv_timer_t* expiry_timer = NULL;
-static on_finish_event_callback_t finish_call = NULL;
-static void alarm_screen_exit_cleanup(void) { 
+
+static void alarm_screen_exit_cleanup(void) {
+    if(!background) return; 
     WITH_UI_LOCK() {
-        if(background) lv_obj_delete_async(background);
+        lv_obj_delete_async(background);
+        background = NULL;
         if(expiry_timer) lv_timer_delete(expiry_timer);
-        if(finish_call) finish_call();
+        wakelock_manager_release_wakelock();
     }
-    background = NULL;
     resume_base_screen();
     expiry_timer = NULL;
-    finish_call = NULL;
 }
 
 static void timer_expiry_cb(lv_timer_t* timer) {
@@ -52,14 +52,14 @@ static void dismiss_btn_click_cb(lv_event_t* event) {
     }
 }
 
-void show_alarm_page(lv_obj_t* parent, date_time_t* dt, on_finish_event_callback_t cb) {
+void show_alarm_page(lv_obj_t* parent, date_time_t* dt) {
     if(background) { 
         // Alarm screen already showing
-        if(cb) cb();
         return;
     }
 
     WITH_UI_LOCK() {
+        wakelock_manager_acquire_wakelock();
         background = lv_obj_create(parent);
         lv_obj_set_size(background, lv_pct(100), lv_pct(100));
         lv_obj_set_style_pad_all(background, 5, LV_STATE_DEFAULT);
@@ -92,17 +92,16 @@ void show_alarm_page(lv_obj_t* parent, date_time_t* dt, on_finish_event_callback
 
         expiry_timer = lv_timer_create(timer_expiry_cb, alarm_screen_timeout_sec*1000, NULL);
         assert(expiry_timer);
-        finish_call = cb;
     }
 }
 
-void show_incoming_call_page(lv_obj_t* parent, const char* number, const char* name, on_finish_event_callback_t cb) {
+void show_incoming_call_page(lv_obj_t* parent, const char* number, const char* name) {
     WITH_UI_LOCK() {
     
     }
 }
 
-void show_incoming_notification_toast(lv_obj_t* parent, const char* title, on_finish_event_callback_t cb) {
+void show_incoming_notification_toast(lv_obj_t* parent, const char* title) {
     WITH_UI_LOCK() {
     
     }

@@ -1,9 +1,7 @@
 #include <app_utils.h>
 #include <app_types.h>
 #include <common_consts.h>
-#include <state_manager.h>
 #include <common_types.h>
-#include <event_manager.h>
 #include <time.h>
 #include <string.h>
 

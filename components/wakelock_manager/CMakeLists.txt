@@ -11,11 +11,4 @@ idf_component_register(
         "private"
     PRIV_REQUIRES
         common
-        lvgl
-        esp_timer
-        display_driver
-        encoder_driver
-        event_manager
-        storage_manager
-        wakelock_manager
 )

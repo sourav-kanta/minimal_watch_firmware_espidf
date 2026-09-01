@@ -9,14 +9,14 @@ idf_component_register(
         "include"
     PRIV_INCLUDE_DIRS
         "private"
-    REQUIRES
-        common
+    PRIV_REQUIRES
         common_app
         common_ui
-    PRIV_REQUIRES
+        common
         state_manager
         event_manager
         gpio_manager
         watchface_mgr
         lvgl_bridge
+        wakelock_manager
 )

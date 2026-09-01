@@ -11,6 +11,7 @@
 #include <gpio_manager.h>
 #include <lvgl_bridge.h>
 #include <wf_manager.h>
+#include <wakelock_manager.h>
 
 static const char* TAG = "Common API";
 
@@ -193,4 +194,24 @@ bool set_ui_inactivity_timeout(const application_t* req_app, uint32_t timeout) {
         return false;
     }
     return lvgl_bridge_update_inactivity_timeout(timeout);
+}
+
+bool acquire_wakelock(const application_t* req_app) {
+    if(!req_app) return false;
+    if(!check_app_permission(req_app, APP_PERM_WAKELOCK)) {
+        ESP_LOGE(TAG, "Wakelock permission missing in app. Failed!");
+        return false;
+    }
+    wakelock_manager_acquire_wakelock();
+    return true;
+}
+
+bool release_wakelock(const application_t* req_app) {
+    if(!req_app) return false;
+    if(!check_app_permission(req_app, APP_PERM_WAKELOCK)) {
+        ESP_LOGE(TAG, "Wakelock permission missing in app. Failed!");
+        return false;
+    }
+    wakelock_manager_release_wakelock();
+    return true;
 }

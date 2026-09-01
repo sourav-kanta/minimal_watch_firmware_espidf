@@ -2,9 +2,8 @@
 #define LVGL_BRIDGE_H
 
 #include <stdint.h>
-#include <lvgl_bridge_types.h>
 
-void init_lvgl(lvgl_params_t*);
+void init_lvgl(void);
 void deinit_lvgl(void);
 void suspend_lvgl(void);
 void resume_lvgl(void);

@@ -26,4 +26,7 @@ size_t get_system_watchface_names(const char** names);
 const char* get_system_selected_watchface_name(void);
 uint32_t get_ui_inactivity_timeout(void);
 
+bool acquire_wakelock(const application_t* req_app);
+bool release_wakelock(const application_t* req_app);
+
 #endif /* COMMON_APIS_H */
