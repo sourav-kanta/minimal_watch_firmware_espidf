@@ -13,7 +13,6 @@ typedef enum {
 typedef void (*on_finish_event_callback_t)(void);
 typedef struct {
     ui_base_screen_event_type_t event_type;
-    on_finish_event_callback_t on_finish_event_callback;
     union Data {
        alarm_t alarm_data;
        notification_t notification_data;

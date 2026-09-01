@@ -11,8 +11,6 @@ idf_component_register(
         "private"
     PRIV_REQUIRES
         common
-        state_manager
-        event_manager
     REQUIRES
         lvgl
 )

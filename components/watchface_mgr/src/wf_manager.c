@@ -5,8 +5,9 @@
 #include <tick_manager.h>
 #include <common_types.h>
 #include <lvgl.h>
-#include <common_apis.h>
 #include <storage_manager.h>
+#include <state_manager.h>
+#include <time.h>
 
 #include <wf_abstract_dark.h>
 #include <wf_analog.h>
@@ -116,10 +117,25 @@ void watchface_manager_deinit(void) {
 static void dispatch_wf_update(const event_t *event) {
     if(!initialized) return;
     if(!curr_wf) return;
+    
     date_time_t date;
+    time_t time_val = (time_t) get_epoch_time();
+    struct tm curr_time;
+    if (gmtime_r(&time_val, &curr_time) != NULL) {
+        date.day = curr_time.tm_mday;
+        date.month = curr_time.tm_mon + 1;
+        date.year = curr_time.tm_year + 1900;
+        date.hr = curr_time.tm_hour;
+        date.min = curr_time.tm_min;
+        date.sec = curr_time.tm_sec;
+        date.d_week = curr_time.tm_wday;
+    }
+
     hourly_weather_t weather[24];
-    get_date_time(&date);
-    get_weather_day(weather);
+    const hourly_weather_t *weather_today = get_weather_today();
+    assert(weather_today);
+    memcpy(weather, weather_today, sizeof(hourly_weather_t)*24);
+    
     wf_update_payload_t payload = {
         .time = date,
         .weather = weather[date.hr]

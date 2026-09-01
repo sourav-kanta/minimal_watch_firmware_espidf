@@ -17,4 +17,5 @@ idf_component_register(
         app_mgr
         notification_manager
         tick_manager
+        wakelock_manager
 )

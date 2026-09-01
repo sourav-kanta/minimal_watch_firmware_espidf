@@ -11,7 +11,6 @@
 #include <event_screens.h>
 #include <ui_base.h>
 #include <time.h>
-#include <esp_log.h>
 
 static const char* TAG = "Root UI";
 static lv_obj_t *root_screen;
@@ -21,10 +20,10 @@ static ui_state_t curr_watch_state = UISTATE_INVALID;
 void close_curr_page(void) {
     switch(curr_watch_state) {
         case WATCHFACE :
+            watchface_manager_stop_wf();
             WITH_UI_LOCK() {
                 lv_obj_clean(wf_page);
             }
-            watchface_manager_stop_wf();
             ESP_LOGI(TAG, "Deleting Watchface UI");
             break;
         case APP :
@@ -33,7 +32,9 @@ void close_curr_page(void) {
             break;
         case NOTIFY :
             clean_notification_page();
-            lv_obj_clean(notify_page);
+            WITH_UI_LOCK() {
+                lv_obj_clean(notify_page);
+            }
             break;
         default :
             ESP_LOGE(TAG, "Unknown page to close");
@@ -247,7 +248,7 @@ void handle_base_screen_event(ui_base_screen_event_t* ui_event) {
                 dt.sec = curr_time.tm_sec;
                 dt.d_week = curr_time.tm_wday;
             }        
-            show_alarm_page(parent, &dt, ui_event->on_finish_event_callback);
+            show_alarm_page(parent, &dt);
         }
         break;
         default :

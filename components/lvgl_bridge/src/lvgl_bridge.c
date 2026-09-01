@@ -11,6 +11,7 @@
 #include <encoder_driver.h>
 #include <lvgl_handler_thread.h>
 #include <lvgl_input_translator.h>
+#include <wakelock_manager.h>
 
 static const char* TAG = "LVGL_SETUP";
 
@@ -19,7 +20,6 @@ static DRAM_ATTR uint8_t disp_buf1[DISPLAY_LVGL_BUFFER_SIZE] __attribute__((alig
 static DRAM_ATTR uint8_t disp_buf2[DISPLAY_LVGL_BUFFER_SIZE] __attribute__((aligned(32)));
 static QueueHandle_t xinputQueue = NULL;
 static const int MAX_INPUTS = 10;
-static wakelock_check_func_t check_wakelock_func = NULL;
 
 static void lvgl_display_flush_cb(lv_display_t * display, const lv_area_t * area, uint8_t * px_map) {
     int offsetx1 = area->x1;
@@ -33,11 +33,9 @@ static void flush_done_cb(void) {
     lv_display_flush_ready(disp);
 }
 
-void init_lvgl(lvgl_params_t* params) {
+void init_lvgl(void) {
     lv_init();
     init_display(flush_done_cb);
-    check_wakelock_func = params->wakelock_check_func;
-    assert(check_wakelock_func);
     disp = lv_display_create(DISPLAY_LCD_H_RES, DISPLAY_LCD_V_RES);
     if (!disp) {
         ESP_LOGE(TAG, "Failed creating LVGL display, panic!");
@@ -48,7 +46,7 @@ void init_lvgl(lvgl_params_t* params) {
     lv_display_set_flush_cb(disp, lvgl_display_flush_cb);
     lv_display_set_color_format(disp, LV_COLOR_FORMAT_RGB565_SWAPPED);
     lv_display_set_offset(disp, 2, 1);
-    ESP_LOGI("LVGL", "LVGL initialized with DMA buffers");
+    ESP_LOGI(TAG, "LVGL initialized with DMA buffers");
 
     xinputQueue = xQueueCreate(MAX_INPUTS, sizeof(encoder_input_t));
     if(xinputQueue == NULL) {
@@ -56,12 +54,13 @@ void init_lvgl(lvgl_params_t* params) {
     }
     encoder_init(xinputQueue);
     setup_keyboard(xinputQueue);
+    wakelock_manager_init();
     display_on();
     if(lvgl_thread_exists()) {
         ESP_LOGE(TAG, "Critical : LVGL is already running");
     }
     else {
-        start_lvgl_thread(check_wakelock_func);
+        start_lvgl_thread();
     }
 }
 
@@ -71,6 +70,8 @@ void deinit_lvgl(void) {
         lv_display_delete(disp);
         disp = NULL;
     }
+    assert(!wakelock_manager_is_wake_locked());
+    wakelock_manager_deinit();
     delete_keyboard();
     encoder_deinit();
     lv_deinit();
@@ -80,11 +81,11 @@ void deinit_lvgl(void) {
     }
     display_off();
     deinit_display();
-    check_wakelock_func = NULL;
-    ESP_LOGI("UI", "LVGL deinitialized.");
+    ESP_LOGI(TAG, "LVGL deinitialized.");
 }
 
 void suspend_lvgl(void) {
+    assert(!wakelock_manager_is_wake_locked());
     if(!lvgl_thread_exists()) {
         ESP_LOGE(TAG, "Critical : LVGL is not currently running");
     }
@@ -102,8 +103,7 @@ void resume_lvgl(void) {
         ESP_LOGE(TAG, "Critical : LVGL is already running");
     }
     else {
-        assert(check_wakelock_func);
-        start_lvgl_thread(check_wakelock_func);
+        start_lvgl_thread();
     }
 }
 

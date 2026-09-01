@@ -13,14 +13,13 @@
 #include <event_manager.h>
 #include <stdint.h>
 #include <storage_manager.h>
-#include <lvgl_bridge_types.h>
+#include <wakelock_manager.h>
 
 static atomic_bool lvgl_run_flag = false;
 static TaskHandle_t worker_handle = NULL;
 static const char* TAG = "LVGL Thread";
 static SemaphoreHandle_t lvgl_exit_semaphore = NULL;
 static uint32_t input_timeout = DISPLAY_MIN_USER_INPUT_TIMEOUT;
-static wakelock_check_func_t wakelock_check_func = NULL;
 
 static void lvgl_task(void *pvParameter) {
     bool first_render = true;    
@@ -45,7 +44,7 @@ static void lvgl_task(void *pvParameter) {
             idle_time = lv_display_get_inactive_time(NULL);
         }
 
-        if(wakelock_check_func && !wakelock_check_func() && (idle_time > input_timeout)) {
+        if((!wakelock_manager_is_wake_locked()) && (idle_time > input_timeout)) {
             // Raise event to put display to sleep
             ESP_LOGI(TAG, "User inactivity, putting display to sleep");
             event_t ev = {
@@ -120,9 +119,8 @@ uint32_t get_input_timeout(void) {
     return input_timeout;
 }
 
-void start_lvgl_thread(wakelock_check_func_t func) {
+void start_lvgl_thread(void) {
     input_timeout = retrieve_input_timeout();
-    wakelock_check_func = func;
     if(worker_handle != NULL) {
         ESP_LOGW(TAG, "LVGL task already running");
         if(lvgl_exit_semaphore)
@@ -160,7 +158,6 @@ void stop_lvgl_thread(void) {
     }
     vSemaphoreDelete(lvgl_exit_semaphore);
     lvgl_exit_semaphore = NULL;
-    wakelock_check_func = NULL;
 }
 
 bool lvgl_thread_exists(void) {
