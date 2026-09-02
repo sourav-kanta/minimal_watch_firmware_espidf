@@ -17,9 +17,4 @@ idf_component_register(
         lvgl
         runtime_manager
         event_manager
-        weather_app
-        settings_app
-        alarm_app
-        stopwatch_app
-        brickbreaker_game
 )

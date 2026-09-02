@@ -14,7 +14,6 @@ idf_component_register(
         ui_base
         common_ui
         lvgl_bridge
-        watchface_mgr
         event_manager
         runtime_manager
 )

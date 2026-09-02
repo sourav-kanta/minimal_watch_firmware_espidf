@@ -9,10 +9,6 @@
 #include <state_manager.h>
 #include <time.h>
 
-#include <wf_abstract_dark.h>
-#include <wf_analog.h>
-#include <wf_retro.h>
-
 static watchface_t* all_wfs[MAX_WATCHFACES];
 static const watchface_t* selected_wf = NULL;
 static const watchface_t* curr_wf = NULL;
@@ -21,7 +17,7 @@ static bool initialized = false;
 
 static int num_wfs=0;
 
-static void register_wf(watchface_t* wf) {
+void watchface_manager_register_wf(watchface_t* wf) {
     if(!initialized) return;
     if(num_wfs >= MAX_WATCHFACES) {
         return;
@@ -102,9 +98,6 @@ void watchface_manager_init(void) {
     }
     
     initialized = true;
-    register_wf(get_retro_wf());
-    register_wf(get_analog_wf());
-    register_wf(get_abstract_dark_wf());
 }
 
 void watchface_manager_deinit(void) {

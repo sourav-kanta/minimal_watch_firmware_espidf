@@ -1,65 +1,39 @@
+#include <ui_base.h>
+
 #include <lvgl.h>
 #include <esp_log.h>
-#include <base_types.h>
 #include <common_types.h>
 #include <global_locks.h>
 #include <navigation.h>
 #include <ui_utils.h>
-#include <wf_manager.h>
-#include <app_picker_ui.h>
-#include <notification_ui.h>
 #include <event_screens.h>
-#include <ui_base.h>
 #include <time.h>
+#include <draw_tab_page.h>
+
+#define UI_BASE_MAX_TABS 3
 
 static const char* TAG = "Root UI";
 static lv_obj_t *root_screen;
-static lv_obj_t *home_tab, *wf_page, *notify_page, *app_page;
+static lv_obj_t *home_tab=NULL;
 static ui_state_t curr_watch_state = UISTATE_INVALID;
+static lv_obj_t* tabs[UI_BASE_MAX_TABS];
+static ui_tab_handlers_t ui_tab_handlers[UI_BASE_MAX_TABS];
 
-void close_curr_page(void) {
-    switch(curr_watch_state) {
-        case WATCHFACE :
-            watchface_manager_stop_wf();
-            WITH_UI_LOCK() {
-                lv_obj_clean(wf_page);
-            }
-            ESP_LOGI(TAG, "Deleting Watchface UI");
-            break;
-        case APP :
-            ESP_LOGI(TAG, "Deleting App manager UI");
-            clean_app_picker_page();            
-            break;
-        case NOTIFY :
-            clean_notification_page();
-            WITH_UI_LOCK() {
-                lv_obj_clean(notify_page);
-            }
-            break;
-        default :
-            ESP_LOGE(TAG, "Unknown page to close");
-            break;
+static void close_curr_page(void) {
+    assert(curr_watch_state >= NOTIFY && curr_watch_state < UISTATE_INVALID);
+    assert(ui_tab_handlers[curr_watch_state].on_close);
+    clean_tab_page(&ui_tab_handlers[curr_watch_state]);
+    assert(tabs[curr_watch_state]);
+    WITH_UI_LOCK() {
+        lv_obj_clean(tabs[curr_watch_state]);
     }
 }
 
 
 static void show_page(ui_state_t page) {
-    switch(page) {
-        case NOTIFY :
-            ESP_LOGI(TAG, "Open notification page");
-            draw_notification_page(notify_page);
-            break;
-        case WATCHFACE :
-            watchface_manager_start_wf(wf_page);
-            break;
-        case APP :
-            draw_app_picker_page(app_page);
-            break;
-        default :
-            ESP_LOGE(TAG, "Unknown page to show");
-            break;
-    }
-
+    assert(page >= NOTIFY && page < UISTATE_INVALID);
+    assert(ui_tab_handlers[page].on_draw);
+    draw_tab_page(tabs[page], &ui_tab_handlers[page]);
 }
 
 static void handle_right_action_on_root(void) {
@@ -130,8 +104,13 @@ static void handle_root_scr_actions(lv_event_t *ev) {
     }
 }
 
+void ui_base_register_tab(ui_state_t page, ui_tab_handlers_t* tab_handler) {
+    assert(tab_handler);
+    assert(page >= NOTIFY && page < UISTATE_INVALID);
+    memcpy(&ui_tab_handlers[page], tab_handler, sizeof(ui_tab_handlers_t));
+}
 
-void draw_base_screen(void) {
+void ui_base_draw_base_screen(void) {
     ESP_LOGI(TAG, "LVGL Version: %d.%d.%d", 
             LVGL_VERSION_MAJOR,
             LVGL_VERSION_MINOR,
@@ -149,21 +128,21 @@ void draw_base_screen(void) {
         lv_obj_add_flag(tabview_content, LV_OBJ_FLAG_EVENT_BUBBLE);
         lv_obj_remove_flag(tabview_content, LV_OBJ_FLAG_SCROLLABLE);
         // Add the pages and make them navigable
-        notify_page = lv_tabview_add_tab(home_tab, "Notifications");
-        remove_shadow_and_outline(notify_page);
-        wf_page = lv_tabview_add_tab(home_tab, "Watchface");
-        remove_shadow_and_outline(wf_page);
-        app_page = lv_tabview_add_tab(home_tab, "Apps");
-        remove_shadow_and_outline(app_page);
+        tabs[NOTIFY] = lv_tabview_add_tab(home_tab, "Notifications");
+        remove_shadow_and_outline(tabs[NOTIFY]);
+        tabs[WATCHFACE] = lv_tabview_add_tab(home_tab, "Watchface");
+        remove_shadow_and_outline(tabs[WATCHFACE]);
+        tabs[APP] = lv_tabview_add_tab(home_tab, "Apps");
+        remove_shadow_and_outline(tabs[APP]);
         lv_tabview_set_active(home_tab, WATCHFACE, LV_ANIM_ON);
         lv_obj_add_event_cb(tabview_content, 
                             handle_root_scr_actions,
                             LV_EVENT_KEY,
                             NULL);
         make_obj_navigable(tabview_content);
-        lv_obj_add_flag(app_page, LV_OBJ_FLAG_EVENT_BUBBLE);
-        lv_obj_add_flag(wf_page, LV_OBJ_FLAG_EVENT_BUBBLE);
-        lv_obj_add_flag(notify_page, LV_OBJ_FLAG_EVENT_BUBBLE);
+        lv_obj_add_flag(tabs[NOTIFY], LV_OBJ_FLAG_EVENT_BUBBLE);
+        lv_obj_add_flag(tabs[WATCHFACE], LV_OBJ_FLAG_EVENT_BUBBLE);
+        lv_obj_add_flag(tabs[APP], LV_OBJ_FLAG_EVENT_BUBBLE);
         lv_group_focus_obj(tabview_content);
         curr_watch_state = WATCHFACE;
     }
@@ -171,63 +150,34 @@ void draw_base_screen(void) {
     ESP_LOGI(TAG, "Base screen draw complete");
 }
 
-void clean_base_screen(void) {
+void ui_base_clean_base_screen(void) {
     close_curr_page();
     WITH_UI_LOCK() {
-        if(wf_page) 
-            lv_obj_clean(wf_page);
-        if(app_page)
-            lv_obj_clean(app_page);
-        if(notify_page)
-            lv_obj_clean(notify_page);
+        for(int i=0; i<UI_BASE_MAX_TABS; i++) {
+            if(tabs[i]) {
+                lv_obj_clean(tabs[i]);
+            }
+        }
     }
 }
 
-void suspend_base_screen(void) {
-    switch(curr_watch_state) {
-        case WATCHFACE :
-            watchface_manager_suspend();
-            break;
-        case NOTIFY :
-            break;
-        case APP :
-            // Implement onStop
-            break;
-        default :
-            break;
+void ui_base_suspend_base_screen(void) {
+    assert(curr_watch_state >= NOTIFY && curr_watch_state < UISTATE_INVALID);
+    if(ui_tab_handlers[curr_watch_state].on_suspend) {
+        ui_tab_handlers[curr_watch_state].on_suspend();
     }
 }
 
-void resume_base_screen(void) {
-    switch(curr_watch_state) {
-        case WATCHFACE :
-            watchface_manager_resume();
-            break;
-        case NOTIFY :
-            break;
-        case APP :
-            // Implement onResume
-            break;
-        default :
-            break;
+void ui_base_resume_base_screen(void) {
+    assert(curr_watch_state >= NOTIFY && curr_watch_state < UISTATE_INVALID);
+    if(ui_tab_handlers[curr_watch_state].on_resume) {
+        ui_tab_handlers[curr_watch_state].on_resume();
     }
 }
 
-void handle_base_screen_event(ui_base_screen_event_t* ui_event) {
-    lv_obj_t* parent = NULL;
-    switch(curr_watch_state) {
-        case WATCHFACE :
-            parent = wf_page;
-            break;
-        case NOTIFY :
-            parent = notify_page;
-            break;
-        case APP :
-            parent = app_page;
-            break;
-        default :
-            break;
-    }
+void ui_base_handle_base_screen_event(ui_base_screen_event_t* ui_event) {
+    assert(curr_watch_state >= NOTIFY && curr_watch_state < UISTATE_INVALID);
+    lv_obj_t* parent = tabs[curr_watch_state];
     if(parent == NULL) return;
     if(!ui_event) {
         ESP_LOGE(TAG, "Invalid event");
@@ -235,7 +185,7 @@ void handle_base_screen_event(ui_base_screen_event_t* ui_event) {
     }
     switch(ui_event->event_type) {
         case BASE_SCREEN_EVENT_ALARM : {
-            suspend_base_screen();
+            ui_base_suspend_base_screen();
             date_time_t dt;
             time_t time_val = (time_t) ui_event->data.alarm_data.epoch;
             struct tm curr_time;
