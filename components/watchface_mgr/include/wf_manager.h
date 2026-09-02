@@ -15,4 +15,6 @@ void watchface_manager_deinit(void);
 void watchface_manager_suspend(void);
 void watchface_manager_resume(void);
 
+void watchface_manager_register_wf(watchface_t* wf);
+
 #endif /* WF_MANAGER_H */

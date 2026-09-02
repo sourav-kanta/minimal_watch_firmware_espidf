@@ -1,9 +1,11 @@
+#include <picker_ui.h>
+
 #include <lvgl.h>
 #include <app_types.h>
 #include <esp_log.h>
 #include <ui_theme.h>
 #include <ui_utils.h>
-#include <app_manager.h>
+#include <app_manager_private.h>
 #include <common_consts.h>
 #include <global_locks.h>
 

@@ -9,13 +9,11 @@ idf_component_register(
         "include"
     PRIV_INCLUDE_DIRS
         "private"
+    REQUIRES
+        lvgl
     PRIV_REQUIRES
         common
-        lvgl
         common_ui
-        watchface_mgr
-        app_mgr
-        notification_manager
         tick_manager
         wakelock_manager
 )

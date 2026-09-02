@@ -1,4 +1,6 @@
 #include <app_manager.h>
+#include <app_manager_private.h>
+
 #include <lvgl.h>
 #include <esp_log.h>
 #include <esp_assert.h>
@@ -9,12 +11,6 @@
 #include <runtime_manager.h>
 #include <event_manager.h>
 
-#include <settings_app.h>
-#include <weather_app.h>
-#include <alarm_app.h>
-#include <stopwatch_app.h>
-#include <brickbreaker_game.h>
-
 static const char* TAG = "App Manager";
 static application_t* all_apps[MAX_APPS];
 static const application_t* curr_app = NULL;
@@ -22,7 +18,7 @@ static uint8_t num_apps = 0;
 static bool is_app_running = false;
 static bool initialized = false;
 
-static void add_app(application_t* app) {
+void app_manager_add_app(application_t* app) {
     if (!app || num_apps >= MAX_APPS) {
         ESP_LOGE(TAG, "Unable to register app, skipping");
         return;
@@ -69,11 +65,6 @@ void app_manager_init(void) {
     curr_app = NULL;
     is_app_running = false;
     initialized = true;
-    add_app(get_weather_app());
-    add_app(get_settings_app());
-    add_app(get_alarm_app());
-    add_app(get_stopwatch_app());
-    add_app(get_brickbreaker_game());
     event_subscribe(EVENT_APP_WORK_SCHEDULE, receive_app_update);
 }
 
@@ -118,7 +109,7 @@ void close_curr_app(void) {
     is_app_running = false;
 }
 
-void show_app_picker_ui(lv_obj_t* parent) {
+void app_manager_show_app_picker_ui(lv_obj_t* parent) {
     if(!parent || !initialized) {
         ESP_LOGE(TAG, "Invalid parent to draw on");
         return;
@@ -128,7 +119,7 @@ void show_app_picker_ui(lv_obj_t* parent) {
     draw_app_picker_ui(parent, all_apps, num_apps);
 }
 
-void clean_app_picker_ui(void) {
+void app_manager_del_app_picker_ui(void) {
     del_app_picker_ui();
 } 
 

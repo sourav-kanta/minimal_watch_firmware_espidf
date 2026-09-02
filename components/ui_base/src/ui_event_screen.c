@@ -19,7 +19,7 @@ static void alarm_screen_exit_cleanup(void) {
         if(expiry_timer) lv_timer_delete(expiry_timer);
         wakelock_manager_release_wakelock();
     }
-    resume_base_screen();
+    ui_base_resume_base_screen();
     expiry_timer = NULL;
 }
 

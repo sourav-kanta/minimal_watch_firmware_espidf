@@ -8,6 +8,7 @@ idf_component_register(
     PRIV_REQUIRES
         common
         ui_manager
+        ui_base
         ble_manager
         event_manager
         state_manager
@@ -20,4 +21,13 @@ idf_component_register(
         notification_manager
         storage_manager
         sensor_manager
+        wf_abstract_dark
+        wf_analog
+        wf_retro
+        weather_app
+        settings_app
+        alarm_app
+        stopwatch_app
+        brickbreaker_game
+        watchface_mgr
 )

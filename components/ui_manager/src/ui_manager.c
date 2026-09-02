@@ -1,7 +1,6 @@
 #include <ui_manager.h>
 #include <lvgl_bridge.h>
 #include <ui_base.h>
-#include <wf_manager.h>
 #include <event_manager.h>
 #include <common_types.h>
 #include <runtime_manager.h>
@@ -16,7 +15,7 @@ ESP_STATIC_ASSERT(sizeof(ui_base_screen_event_t) <= MAX_WORKER_ARG_PAYLOAD, "Wor
 static void handle_ui_event_cb(void* arg, runtime_abort_flag_t* flag) {
     if(arg != NULL) {
         ui_base_screen_event_t* ui_ev = (ui_base_screen_event_t*) arg;
-        handle_base_screen_event(ui_ev);
+        ui_base_handle_base_screen_event(ui_ev);
     }    
 }
 
@@ -41,31 +40,30 @@ static void alarm_triggred_event_cb(const event_t* event) {
 void ui_on(void) {
     ESP_LOGI(TAG, "Turning on UI"); 
     init_lvgl();
-    draw_base_screen();
+    ui_base_draw_base_screen();
 }
 
 void ui_off(void) {
     ESP_LOGI(TAG, "Turning off UI"); 
-    clean_base_screen();
+    ui_base_clean_base_screen();
     deinit_lvgl();
 }
 
 void ui_sleep(void) {
     ESP_LOGI(TAG, "Putting UI to sleep"); 
-    suspend_base_screen();
+    ui_base_suspend_base_screen();
     suspend_lvgl();
 }
 
 void ui_resume(void) {
     ESP_LOGI(TAG, "Waking UI"); 
     resume_lvgl();
-    resume_base_screen();
+    ui_base_resume_base_screen();
 }
 
 void ui_manager_init(void) {
     if(initialized)
         return;
-    watchface_manager_init();
     initialized = true;
     event_subscribe(EVENT_ALARM_TRIGGERED, alarm_triggred_event_cb);
     ESP_LOGI(TAG, "Initialized successfully"); 
@@ -74,7 +72,6 @@ void ui_manager_init(void) {
 void ui_manager_deinit(void) {
     event_unsubscribe(EVENT_ALARM_TRIGGERED, alarm_triggred_event_cb);
     ui_off();
-    watchface_manager_deinit();
     initialized = false;    
     ESP_LOGI(TAG, "Deinitialized successfully"); 
 }
