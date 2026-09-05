@@ -1,7 +1,13 @@
 idf_component_register(
     SRCS "mock_layer.c"
     INCLUDE_DIRS "."
-    REQUIRES esp_lcd encoder_driver ble_manager runtime_manager esp_driver_ledc
+    REQUIRES 
+    esp_lcd 
+    encoder_driver
+    ble_manager 
+    runtime_manager 
+    esp_driver_ledc
+    esp_adc
 )
 
 target_include_directories(
@@ -24,4 +30,7 @@ target_link_libraries(${COMPONENT_LIB} INTERFACE
     "-Wl,--wrap=ledc_set_duty"
     "-Wl,--wrap=ledc_update_duty"
     "-Wl,--wrap=sensor_manager_init"
+    "-Wl,--wrap=gpio_manager_read_battery_mv"
+    "-Wl,--wrap=adc_cali_create_scheme_curve_fitting"
+    "-Wl,--wrap=adc_calc_hw_calibration_code"
 )

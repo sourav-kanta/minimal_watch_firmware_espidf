@@ -7,11 +7,9 @@ idf_component_register(
         ${SOURCES}
     INCLUDE_DIRS 
         "include"
+    PRIV_INCLUDE_DIRS
+        "private"
     PRIV_REQUIRES
         common
-        event_manager
-        runtime_manager
-        QMI8658A_driver
-        BMP180_driver
-        battery_driver
+        gpio_manager
 )
