@@ -6,11 +6,13 @@
 #include <gpio_pins.h>
 #include <esp_attr.h>
 #include <esp_log.h>
+#include <sensor_manager.h>
+#include <battery_driver.h>
 
 static const char* TAG = "Sensor manager";
 static DRAM_ATTR uint8_t imu_fifo[800] __attribute__((aligned(32)));
 
-static void process_sensor_data(void *arg, runtime_abort_flag_t* flag) {
+static void process_imu_data(void *arg, runtime_abort_flag_t* flag) {
     int temp_scaled_100;
     imu_err_t imu_err = imu_read_temperature(&temp_scaled_100);
     if(imu_err != IMU_OK) {
@@ -23,27 +25,12 @@ static void process_sensor_data(void *arg, runtime_abort_flag_t* flag) {
     if(imu_err != IMU_OK) {
         ESP_LOGE(TAG, "Fifo read failed");
     }
-
-    // ------------- Test BMP driver -------------
-    int bmp_temp_scaled_10;
-    int altitude_scaled_10;
-
-    // bool success = bmp180_read_temp(&bmp_temp_scaled_10);
-    // if(!success) ESP_LOGE(TAG, "Failed to read BMP180 temp");
-    //ESP_LOGI(TAG, "BMP180 Temp = %d", bmp_temp_scaled_10);
     
-    bool success = bmp180_read_temp_and_altitude(&bmp_temp_scaled_10, &altitude_scaled_10, 
-                                            BMP180_SENSOR_MODE_HIGH_RES);
-    if(!success) ESP_LOGE(TAG, "Failed to read BMP180 altitude");
-
-    ESP_LOGI(TAG, "BMP180 Temp = %d, Altitude = %d", bmp_temp_scaled_10, altitude_scaled_10);
-   
     if(*flag == true) {
         ESP_LOGW(TAG, "Used up time quota for work window. Skipping IMU work");
         memset(imu_fifo, 0, sizeof(imu_fifo));
         return;
     }
-    // ------------------ End Test -------------------------
 
     // 2 bytes each and 3 words for a single read
     samples = (samples / 3) / 2; 
@@ -73,13 +60,60 @@ static void process_sensor_data(void *arg, runtime_abort_flag_t* flag) {
     memset(imu_fifo, 0, sizeof(imu_fifo));
 } 
 
+static void process_bmp_data(void *arg, runtime_abort_flag_t* flag) {
+    // ------------- Test BMP driver -------------
+    int bmp_temp_scaled_10;
+    int altitude_scaled_10;
+
+    // bool success = bmp180_read_temp(&bmp_temp_scaled_10);
+    // if(!success) ESP_LOGE(TAG, "Failed to read BMP180 temp");
+    // ESP_LOGI(TAG, "BMP180 Temp = %d", bmp_temp_scaled_10);
+    
+    bool success = bmp180_read_temp_and_altitude(&bmp_temp_scaled_10, &altitude_scaled_10, 
+                                            BMP180_SENSOR_MODE_HIGH_RES);
+    if(!success) ESP_LOGE(TAG, "Failed to read BMP180 altitude");
+
+    ESP_LOGI(TAG, "BMP180 Temp = %d, Altitude = %d", bmp_temp_scaled_10, altitude_scaled_10);
+    // Fire event to update system altitude
+    
+    // ------------------ End Test -------------------------
+}
+
+static void process_battery_data(void *arg, runtime_abort_flag_t* flag) {
+    uint8_t batt_pct = battery_driver_read_battery_percentage();
+    ESP_LOGI(TAG, "Battery percentage : %u", batt_pct);
+    // Fire event to update system battery percentage
+}
+
 static void schedule_sensor_work(const event_t* event) {
     runtime_work_item_t imu_work = {
-        .handler = process_sensor_data,
+        .handler = process_imu_data,
         .type = WORK_TYPE_SYSTEM,
     };
     bool success = schedule_system_work(&imu_work);
-    assert(success);
+    if(!success) {
+        ESP_LOGE(TAG, "Failed scheduling IMU work. Skipping");
+    }
+    
+    /* ------------------- Move these two to SENSOR_TICK (1min interval) -----------*/
+
+    runtime_work_item_t bmp_work = {
+        .handler = process_bmp_data,
+        .type = WORK_TYPE_SYSTEM,
+    };
+    success = schedule_system_work(&bmp_work);
+    if(!success) {
+        ESP_LOGE(TAG, "Failed scheduling BMP work. Skipping");
+    }
+    
+    runtime_work_item_t batt_work = {
+        .handler = process_battery_data,
+        .type = WORK_TYPE_SYSTEM,
+    };
+    success = schedule_system_work(&batt_work);
+    if(!success) {
+        ESP_LOGE(TAG, "Failed scheduling Battery work. Skipping");
+    }
 }
 
 void sensor_manager_arm_wakeup_interrupt(void) {
@@ -92,6 +126,7 @@ void sensor_manager_disarm_wakup_interrupt(void) {
 
 void sensor_manager_init(void) {
     bmp180_init();
+    battery_driver_init();
     imu_err_t imu_err = IMU_OK;
     imu_params_t params = {
         .CS_PIN = SENSOR_IMU_CS,
@@ -114,5 +149,6 @@ void sensor_manager_deinit(void) {
     if(err != IMU_OK) {
         ESP_LOGE(TAG, "Failed to switch to lowpower mode");
     }
+    battery_driver_deinit();
     bmp180_deinit();
 }

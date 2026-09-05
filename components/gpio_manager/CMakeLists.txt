@@ -14,6 +14,7 @@ idf_component_register(
         event_manager
         esp_driver_gpio
         esp_driver_ledc
+        esp_adc
         driver
         storage_manager
 )

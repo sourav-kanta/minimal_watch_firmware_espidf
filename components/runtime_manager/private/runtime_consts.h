@@ -4,8 +4,8 @@
 #define MAX_USER_WORK_PER_WINDOW            10
 #define MAX_SYSTEM_WORK_PER_WINDOW          10
 
-#define WORKER_POOL_SIZE                    4
-#define WORKER_POOL_SYSTEM_ALLOCATION       2
+#define WORKER_POOL_SIZE                    6
+#define WORKER_POOL_SYSTEM_ALLOCATION       4
 #define WORKER_POOL_USER_ALLOCATION         (WORKER_POOL_SIZE - WORKER_POOL_SYSTEM_ALLOCATION)
 #define WORKER_STACK_SIZE_BYTES             3072
 #define RUNTIME_BASELINE_PRIORITY           1

@@ -14,6 +14,9 @@
 #include <ble_types.h>
 #include <ble_consts.h>
 #include <driver/ledc.h>
+#include <esp_adc/adc_cali.h>
+#include <esp_adc/adc_cali_scheme.h>
+#include <esp_adc/adc_oneshot.h>
 
 esp_lcd_panel_handle_t qemu_mock_panel_handle = NULL;
 void (*callback) ();
@@ -296,4 +299,17 @@ esp_err_t __wrap_ledc_update_duty(ledc_mode_t speed_mode, ledc_channel_t channel
 void __wrap_sensor_manager_init(void) {
     printf("[QEMU MOCK] Sensor manager bypassed.\n");
     return;
+}
+
+esp_err_t __wrap_adc_cali_create_scheme_curve_fitting(const adc_cali_curve_fitting_config_t *config, adc_cali_handle_t *ret_handle) {
+    *ret_handle = (adc_cali_handle_t)0xDEADBEEF; 
+    return ESP_OK;
+}
+
+int __wrap_gpio_manager_read_battery_mv(void) {
+    return 0;
+}
+
+uint32_t __wrap_adc_calc_hw_calibration_code(int adc_n, int atten) {
+    return 0; 
 }
