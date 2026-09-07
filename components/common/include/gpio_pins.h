@@ -1,8 +1,6 @@
 #ifndef GPIO_PINS_H
 #define GPIO_PINS_H
 
-#define BOARD_STATUS_RGB_LED_IO  48
-
 #define DISPLAY_LCD_HOST                    SPI2_HOST
 #define DISPLAY_PIN_NUM_MOSI                11
 #define DISPLAY_PIN_NUM_CLK                 10

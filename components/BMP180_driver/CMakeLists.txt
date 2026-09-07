@@ -13,4 +13,5 @@ idf_component_register(
         common
         esp_driver_i2c
         storage_manager
+        sleep_lock_service
 )

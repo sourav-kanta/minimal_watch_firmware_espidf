@@ -22,6 +22,7 @@ target_link_libraries(${COMPONENT_LIB} INTERFACE
     "-Wl,--wrap=display_draw_bitmap"  
     "-Wl,--wrap=display_on"
     "-Wl,--wrap=display_off"
+    "-Wl,--wrap=display_sleep"
     "-Wl,--wrap=led_strip_new_rmt_device"
     "-Wl,--wrap=gpio_sleep_sel_en"
     "-Wl,--wrap=esp_sleep_enable_gpio_wakeup"

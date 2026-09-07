@@ -5,6 +5,8 @@
 #include <esp_assert.h>
 #include <esp_log.h>
 #include <kalman_filter.h>
+#include <battery_driver.h>
+#include <sleep_lock_service.h>
 
 static kalman_state_t batt_kalman_state;
 static const char* TAG = "Battery driver";
@@ -31,20 +33,22 @@ static int compare_ints(const void *a, const void *b) {
 }
 
 uint8_t battery_driver_read_battery_percentage(void) {
-    gpio_manager_enable_battery_read();
-    TickType_t sleep_tick = pdMS_TO_TICKS(5);
-    sleep_tick = sleep_tick == 0 ? 1 : sleep_tick;
-    vTaskDelay(sleep_tick);
-
     int samples[BURST_READ_SAMPLE_COUNT];
-    for(int i = 0; i < BURST_READ_SAMPLE_COUNT; i++) {
-        samples[i] = gpio_manager_read_battery_mv();
-        sleep_tick = pdMS_TO_TICKS(1);
+    WITH_SLEEP_LOCK() {
+        gpio_manager_enable_battery_read();
+        TickType_t sleep_tick = pdMS_TO_TICKS(5);
         sleep_tick = sleep_tick == 0 ? 1 : sleep_tick;
         vTaskDelay(sleep_tick);
-    }
-    
-    gpio_manager_disable_battery_read();
+
+        for(int i = 0; i < BURST_READ_SAMPLE_COUNT; i++) {
+            samples[i] = gpio_manager_read_battery_mv();
+            sleep_tick = pdMS_TO_TICKS(1);
+            sleep_tick = sleep_tick == 0 ? 1 : sleep_tick;
+            vTaskDelay(sleep_tick);
+        }
+        
+        gpio_manager_disable_battery_read();
+    } 
     
     qsort(samples, BURST_READ_SAMPLE_COUNT, sizeof(int), compare_ints);
     

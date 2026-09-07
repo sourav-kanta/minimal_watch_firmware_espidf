@@ -267,6 +267,7 @@ bool __wrap_display_off(void) {
 
 bool __wrap_display_sleep(void) {
     printf("[QEMU DISPLAY] Screen Power -> OFF\n");
+    __wrap_display_off();
     return true;
 }
 

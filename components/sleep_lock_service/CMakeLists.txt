@@ -7,10 +7,4 @@ idf_component_register(
         ${SOURCES}
     INCLUDE_DIRS 
         "include"
-    PRIV_INCLUDE_DIRS
-        "private"
-    PRIV_REQUIRES
-        common
-        esp_driver_spi
-        sleep_lock_service
 )
