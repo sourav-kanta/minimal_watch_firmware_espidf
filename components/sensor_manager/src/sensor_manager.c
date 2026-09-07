@@ -97,23 +97,23 @@ static void schedule_sensor_work(const event_t* event) {
     
     /* ------------------- Move these two to SENSOR_TICK (1min interval) -----------*/
 
-    runtime_work_item_t bmp_work = {
-        .handler = process_bmp_data,
-        .type = WORK_TYPE_SYSTEM,
-    };
-    success = schedule_system_work(&bmp_work);
-    if(!success) {
-        ESP_LOGE(TAG, "Failed scheduling BMP work. Skipping");
-    }
-    
-    runtime_work_item_t batt_work = {
-        .handler = process_battery_data,
-        .type = WORK_TYPE_SYSTEM,
-    };
-    success = schedule_system_work(&batt_work);
-    if(!success) {
-        ESP_LOGE(TAG, "Failed scheduling Battery work. Skipping");
-    }
+    //runtime_work_item_t bmp_work = {
+    //    .handler = process_bmp_data,
+    //    .type = WORK_TYPE_SYSTEM,
+    //};
+    //success = schedule_system_work(&bmp_work);
+    //if(!success) {
+    //    ESP_LOGE(TAG, "Failed scheduling BMP work. Skipping");
+    //}
+    //
+    //runtime_work_item_t batt_work = {
+    //    .handler = process_battery_data,
+    //    .type = WORK_TYPE_SYSTEM,
+    //};
+    //success = schedule_system_work(&batt_work);
+    //if(!success) {
+    //    ESP_LOGE(TAG, "Failed scheduling Battery work. Skipping");
+    //}
 }
 
 void sensor_manager_arm_wakeup_interrupt(void) {

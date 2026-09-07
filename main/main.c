@@ -18,6 +18,7 @@
 #include <sensor_manager.h>
 #include <wf_manager.h>
 #include <ui_base.h>
+#include <sleep_lock_service.h>
 
 #include <settings_app.h>
 #include <weather_app.h>
@@ -33,6 +34,13 @@ void app_main(void)
 {
     init_locks();
     event_manager_init();
+    power_manager_init();
+    sleep_lock_interface_t sleep_lock_api = {
+        .sleep_lock_acquire = power_manager_prevent_sleep,
+        .sleep_lock_release = power_manager_allow_sleep,
+    };
+    sleep_lock_service_init(&sleep_lock_api);
+
     runtime_manager_init();
     storage_manager_init();    
     sensor_manager_init();
@@ -89,7 +97,7 @@ void app_main(void)
 
     tick_manager_init();
     ui_on();
-    power_manager_init();
+    tick_manager_generate_tick(TICK_WORK);
     notification_manager_init();
 
     while(1) {

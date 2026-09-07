@@ -45,6 +45,8 @@ void tick_manager_deinit(void) {
         esp_timer_stop(wf_update_timer);
         esp_timer_delete(wf_update_timer);
         wf_update_timer = NULL;
+    }
+    if(work_tick_timer) {
         esp_timer_stop(work_tick_timer);
         esp_timer_delete(work_tick_timer);
         work_tick_timer = NULL;

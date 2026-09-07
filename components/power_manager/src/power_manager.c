@@ -5,15 +5,17 @@
 #include <freertos/queue.h>
 #include <esp_log.h>
 #include <esp_err.h>
+#include <esp_attr.h>
 #include <event_manager.h>
 #include <runtime_manager.h>
 #include <power_types.h>
 #include <ui_manager.h>
-#include <tick_manager.h>
 #include <common_types.h>
 #include <esp_system.h>
 #include <esp_sleep.h>
 #include <gpio_manager.h>
+#include <esp_pm.h>
+#include <esp_err.h>
 
 static const char* TAG = "Power Manager";
 static int64_t sleep = 0;
@@ -21,6 +23,7 @@ static QueueHandle_t power_queue = NULL;
 static TaskHandle_t power_task = NULL;
 static bool initialized = false;
 static power_state_t state = POWER_STATE_SLEEP;
+static esp_pm_lock_handle_t hw_sleep_lock = NULL;
 
 static void power_task_fn(void *arg)
 {
@@ -63,7 +66,7 @@ static void power_task_fn(void *arg)
     }
 }
 
-static void transition_to_ui_active(void) {
+static IRAM_ATTR void transition_to_ui_active(void) {
     power_cmd_t new_cmd = POWER_CMD_UI_WAKE;
     if (power_queue) {
         (void)xQueueSend(power_queue, &new_cmd, 0);
@@ -83,11 +86,11 @@ static void alarm_triggered_cb(const event_t* event) {
     }
 }
 
-static int light_sleep_enter_cb(int64_t sleep_us, void* arg) {
+static IRAM_ATTR int light_sleep_enter_cb(int64_t sleep_us, void* arg) {
     return ESP_OK;
 }
 
-static int light_sleep_exit_cb(int64_t sleep_us, void* arg) {
+static IRAM_ATTR int light_sleep_exit_cb(int64_t sleep_us, void* arg) {
     sleep += sleep_us;
     esp_sleep_wakeup_cause_t cause = esp_sleep_get_wakeup_causes();
     if(cause & (1<<ESP_SLEEP_WAKEUP_GPIO)) {
@@ -102,6 +105,19 @@ static void sleep_debug_cb(const event_t* event) {
         sleep = 0; 
     }
 }
+
+void power_manager_prevent_sleep(void) {
+    assert(initialized);
+    assert(hw_sleep_lock);
+    ESP_ERROR_CHECK(esp_pm_lock_acquire(hw_sleep_lock));
+}
+
+void power_manager_allow_sleep(void) {
+    assert(initialized);
+    assert(hw_sleep_lock);
+    ESP_ERROR_CHECK(esp_pm_lock_release(hw_sleep_lock));
+}
+
 
 void power_manager_init(void) {
     if(initialized) return;
@@ -140,20 +156,27 @@ void power_manager_init(void) {
     if(err != ESP_OK) {
         ESP_LOGE(TAG, "Error registering PM callbacks");
     }
-    initialized = true;
     event_subscribe(EVENT_UI_INACTIVE, ui_inactive_event_cb);
     event_subscribe(EVENT_WORK_TICK, sleep_debug_cb);
     event_subscribe(EVENT_ALARM_TRIGGERED, alarm_triggered_cb);
-    tick_manager_generate_tick(TICK_WORK);
+    ESP_ERROR_CHECK(esp_pm_lock_create(ESP_PM_NO_LIGHT_SLEEP, 0, "Sleep lock", &hw_sleep_lock));
+    assert(hw_sleep_lock);
     state = POWER_STATE_UI_ACTIVE;    
     sleep = 0;                                
+    initialized = true;
 }
 
 void power_manager_deinit(void) {
+    initialized = false;
+    if(hw_sleep_lock) {
+        // Will fail if not acquired so no error check
+        while (esp_pm_lock_release(hw_sleep_lock) == ESP_OK) { }
+        ESP_ERROR_CHECK(esp_pm_lock_delete(hw_sleep_lock));
+        hw_sleep_lock = NULL;
+    }
     event_unsubscribe(EVENT_ALARM_TRIGGERED, alarm_triggered_cb);
     event_unsubscribe(EVENT_UI_INACTIVE, ui_inactive_event_cb);
     event_unsubscribe(EVENT_WORK_TICK, sleep_debug_cb);
     power_cmd_t cmd = POWER_CMD_SHUTDOWN;
     xQueueSend(power_queue, &cmd, 0);
-    initialized = false;
 }

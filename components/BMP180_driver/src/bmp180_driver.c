@@ -7,6 +7,7 @@
 #include <storage_manager.h>
 #include <common_consts.h>
 #include <math.h>
+#include <sleep_lock_service.h>
 
 #define CAL_REG_WORD_AC1_IDX         0
 #define CAL_REG_WORD_AC2_IDX         2
@@ -51,14 +52,23 @@ bool bmp180_read_temp(int *temp_scaled_10) {
     
     // Calculate compensated temperature
     uint8_t cmd = BMP180_CMD_READ_TEMP;
-    bool success = esp32s3_bmp_driver.write_reg(esp32s3_bmp_driver.handle, BMP180_REG_CONTROL, &cmd, sizeof(cmd));
-    if(!success) return false;
-    TickType_t wait_ticks = pdMS_TO_TICKS(5) == 0 ? 1 : pdMS_TO_TICKS(5);
-    vTaskDelay(wait_ticks);
+    bool success;
     uint8_t raw_bytes[3];
-    if (!esp32s3_bmp_driver.read_reg(esp32s3_bmp_driver.handle, BMP180_REG_DATA_MSB, raw_bytes, 2)) {
-        return false;
+    
+    WITH_SLEEP_LOCK() {
+        success = esp32s3_bmp_driver.write_reg(esp32s3_bmp_driver.handle, BMP180_REG_CONTROL, &cmd, sizeof(cmd));
+        if(!success) {
+            sleep_lock_service_release_lock();
+            return false;
+        }
+        TickType_t wait_ticks = pdMS_TO_TICKS(5) == 0 ? 1 : pdMS_TO_TICKS(5);
+        vTaskDelay(wait_ticks);
+        if (!esp32s3_bmp_driver.read_reg(esp32s3_bmp_driver.handle, BMP180_REG_DATA_MSB, raw_bytes, 2)) {
+            sleep_lock_service_release_lock();
+            return false;
+        }
     }
+    
     int32_t UT = (int32_t)(((uint16_t)raw_bytes[0] << 8) | raw_bytes[1]);
     int32_t X1 = ((UT - (int32_t)calibration_regs.AC6) * (int32_t)calibration_regs.AC5) >> 15;
     int32_t X2 = ((int32_t)calibration_regs.MC << 11) / (X1 + (int32_t)calibration_regs.MD);
@@ -76,14 +86,23 @@ bool bmp180_read_temp_and_altitude(int *temp_scaled_10, int *alt_meters_scaled_1
     
     // Calculate compensated temperature
     uint8_t cmd = BMP180_CMD_READ_TEMP;
-    bool success = esp32s3_bmp_driver.write_reg(esp32s3_bmp_driver.handle, BMP180_REG_CONTROL, &cmd, sizeof(cmd));
-    if(!success) return false;
-    TickType_t wait_ticks = pdMS_TO_TICKS(5) == 0 ? 1 : pdMS_TO_TICKS(5);
-    vTaskDelay(wait_ticks);
     uint8_t raw_bytes[3];
-    if (!esp32s3_bmp_driver.read_reg(esp32s3_bmp_driver.handle, BMP180_REG_DATA_MSB, raw_bytes, 2)) {
-        return false;
+    bool success;
+    
+    WITH_SLEEP_LOCK() {
+        success = esp32s3_bmp_driver.write_reg(esp32s3_bmp_driver.handle, BMP180_REG_CONTROL, &cmd, sizeof(cmd));
+        if(!success) {
+            sleep_lock_service_release_lock();
+            return false;
+        }
+        TickType_t wait_ticks = pdMS_TO_TICKS(5) == 0 ? 1 : pdMS_TO_TICKS(5);
+        vTaskDelay(wait_ticks);
+        if (!esp32s3_bmp_driver.read_reg(esp32s3_bmp_driver.handle, BMP180_REG_DATA_MSB, raw_bytes, 2)) {
+            sleep_lock_service_release_lock();
+            return false;
+        }
     }
+    
     int32_t UT = (int32_t)(((uint16_t)raw_bytes[0] << 8) | raw_bytes[1]);
     int32_t X1 = ((UT - (int32_t)calibration_regs.AC6) * (int32_t)calibration_regs.AC5) >> 15;
     int32_t X2 = ((int32_t)calibration_regs.MC << 11) / (X1 + (int32_t)calibration_regs.MD);
@@ -99,15 +118,20 @@ bool bmp180_read_temp_and_altitude(int *temp_scaled_10, int *alt_meters_scaled_1
     delay_ms[BMP180_SENSOR_MODE_HIGH_RES] = 14;
     delay_ms[BMP180_SENSOR_MODE_ULTRA_HIGH_RES] = 26;
 
-    cmd = BMP180_CMD_READ_PRESS | (oss << BMP180_OSS_SHIFT);
-    if (!esp32s3_bmp_driver.write_reg(esp32s3_bmp_driver.handle, BMP180_REG_CONTROL, &cmd, 1)) {
-        return false;
+    WITH_SLEEP_LOCK() {
+        cmd = BMP180_CMD_READ_PRESS | (oss << BMP180_OSS_SHIFT);
+        if (!esp32s3_bmp_driver.write_reg(esp32s3_bmp_driver.handle, BMP180_REG_CONTROL, &cmd, 1)) {
+            sleep_lock_service_release_lock();
+            return false;
+        }
+        TickType_t wait_ticks = pdMS_TO_TICKS(delay_ms[oss]) == 0 ? 1 : pdMS_TO_TICKS(delay_ms[oss]);
+        vTaskDelay(wait_ticks);
+        if (!esp32s3_bmp_driver.read_reg(esp32s3_bmp_driver.handle, BMP180_REG_DATA_MSB, raw_bytes, 3)) {
+            sleep_lock_service_release_lock();
+            return false;
+        }
     }
-    wait_ticks = pdMS_TO_TICKS(delay_ms[oss]) == 0 ? 1 : pdMS_TO_TICKS(delay_ms[oss]);
-    vTaskDelay(wait_ticks);
-    if (!esp32s3_bmp_driver.read_reg(esp32s3_bmp_driver.handle, BMP180_REG_DATA_MSB, raw_bytes, 3)) {
-        return false;
-    }
+
     int32_t UP = (int32_t)((((uint32_t)raw_bytes[0] << 16) |
                              ((uint32_t)raw_bytes[1] << 8) |
                              (uint32_t)raw_bytes[2]) >> (8 - oss));

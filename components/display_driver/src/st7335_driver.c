@@ -13,6 +13,7 @@
 #include "driver/gpio.h"
 #include "esp_log.h"
 #include "esp_check.h"
+#include <sleep_lock_service.h>
 
 #include <st7735_driver.h>
 
@@ -149,15 +150,19 @@ static esp_err_t panel_st7735_reset(esp_lcd_panel_t *panel)
     // perform hardware reset
     if (st7735->reset_gpio_num >= 0)
     {
-        gpio_set_level(st7735->reset_gpio_num, st7735->reset_level);
-        vTaskDelay(pdMS_TO_TICKS(10));
-        gpio_set_level(st7735->reset_gpio_num, !st7735->reset_level);
-        vTaskDelay(pdMS_TO_TICKS(10));
+        WITH_SLEEP_LOCK() {
+            gpio_set_level(st7735->reset_gpio_num, st7735->reset_level);
+            vTaskDelay(pdMS_TO_TICKS(10));
+            gpio_set_level(st7735->reset_gpio_num, !st7735->reset_level);
+            vTaskDelay(pdMS_TO_TICKS(10));
+        }
     }
     else
     { // perform software reset
-        ESP_RETURN_ON_ERROR(esp_lcd_panel_io_tx_param(io, LCD_CMD_SWRESET, NULL, 0), TAG, "send command failed");
-        vTaskDelay(pdMS_TO_TICKS(20)); // spec, wait at least 5ms before sending new command
+        WITH_SLEEP_LOCK() {
+            ESP_ERROR_CHECK(esp_lcd_panel_io_tx_param(io, LCD_CMD_SWRESET, NULL, 0));
+            vTaskDelay(pdMS_TO_TICKS(20)); // spec, wait at least 5ms before sending new command
+        }
     }
 
     return ESP_OK;
@@ -199,62 +204,64 @@ static esp_err_t panel_st7735_init(esp_lcd_panel_t *panel)
     st7735_panel_t *st7735 = __containerof(panel, st7735_panel_t, base);
     esp_lcd_panel_io_handle_t io = st7735->io;
     ESP_LOGI(TAG, "init st7735 panel @%p", st7735);
-    // LCD goes into sleep mode and display will be turned off after power on reset, exit sleep mode first
-    ESP_RETURN_ON_ERROR(esp_lcd_panel_io_tx_param(io, LCD_CMD_SLPOUT, NULL, 0), TAG, "send command failed");
-    vTaskDelay(pdMS_TO_TICKS(100));
-    ESP_RETURN_ON_ERROR(esp_lcd_panel_io_tx_param(io, LCD_CMD_MADCTL, (uint8_t[]){
-                                                                          st7735->madctl_val,
-                                                                      },
-                                                  1),
-                        TAG, "send command failed");
-    ESP_RETURN_ON_ERROR(esp_lcd_panel_io_tx_param(io, LCD_CMD_COLMOD, (uint8_t[]){
-                                                                          st7735->colmod_val,
-                                                                      },
-                                                  1),
-                        TAG, "send command failed");
+    WITH_SLEEP_LOCK() {
+        // LCD goes into sleep mode and display will be turned off after power on reset, exit sleep mode first
+        ESP_ERROR_CHECK(esp_lcd_panel_io_tx_param(io, LCD_CMD_SLPOUT, NULL, 0));
+        vTaskDelay(pdMS_TO_TICKS(100));
+        ESP_ERROR_CHECK(esp_lcd_panel_io_tx_param(io, LCD_CMD_MADCTL, (uint8_t[]){
+                                                                              st7735->madctl_val,
+                                                                          },
+                                                      1));
+        ESP_ERROR_CHECK(esp_lcd_panel_io_tx_param(io, LCD_CMD_COLMOD, (uint8_t[]){
+                                                                              st7735->colmod_val,
+                                                                          },
+                                                      1));
 
-    const st7735_lcd_init_cmd_t *init_cmds = NULL;
-    uint16_t init_cmds_size = 0;
-    if (st7735->init_cmds)
-    {
-        init_cmds = st7735->init_cmds;
-        init_cmds_size = st7735->init_cmds_size;
-    }
-    else
-    {
-        init_cmds = st7735_init_cmds;
-        init_cmds_size = sizeof(st7735_init_cmds) / sizeof(st7735_lcd_init_cmd_t);
-    }
-
-    bool is_cmd_overwritten = false;
-    ESP_LOGI(TAG, "Command Count == %d", init_cmds_size);
-    for (int i = 0; i < init_cmds_size; i++)
-    {
-        ESP_LOGI(TAG, "cmd %02x", init_cmds[i].cmd);
-        // Check if the command has been used or conflicts with the internal
-        switch (init_cmds[i].cmd)
+        const st7735_lcd_init_cmd_t *init_cmds = NULL;
+        uint16_t init_cmds_size = 0;
+        if (st7735->init_cmds)
         {
-        case LCD_CMD_MADCTL:
-            is_cmd_overwritten = true;
-            st7735->madctl_val = ((uint8_t *)init_cmds[i].data)[0];
-            break;
-        case LCD_CMD_COLMOD:
-            is_cmd_overwritten = true;
-            st7735->colmod_val = ((uint8_t *)init_cmds[i].data)[0];
-            break;
-        default:
-            is_cmd_overwritten = false;
-            break;
+            init_cmds = st7735->init_cmds;
+            init_cmds_size = st7735->init_cmds_size;
+        }
+        else
+        {
+            init_cmds = st7735_init_cmds;
+            init_cmds_size = sizeof(st7735_init_cmds) / sizeof(st7735_lcd_init_cmd_t);
         }
 
-        if (is_cmd_overwritten)
+        bool is_cmd_overwritten = false;
+        ESP_LOGI(TAG, "Command Count == %d", init_cmds_size);
+        for (int i = 0; i < init_cmds_size; i++)
         {
-            ESP_LOGW(TAG, "The %02Xh command has been used and will be overwritten by external initialization sequence", init_cmds[i].cmd);
-        }
+            ESP_LOGI(TAG, "cmd %02x", init_cmds[i].cmd);
+            // Check if the command has been used or conflicts with the internal
+            switch (init_cmds[i].cmd)
+            {
+            case LCD_CMD_MADCTL:
+                is_cmd_overwritten = true;
+                st7735->madctl_val = ((uint8_t *)init_cmds[i].data)[0];
+                break;
+            case LCD_CMD_COLMOD:
+                is_cmd_overwritten = true;
+                st7735->colmod_val = ((uint8_t *)init_cmds[i].data)[0];
+                break;
+            default:
+                is_cmd_overwritten = false;
+                break;
+            }
 
-        ESP_RETURN_ON_ERROR(esp_lcd_panel_io_tx_param(io, init_cmds[i].cmd, init_cmds[i].data, init_cmds[i].data_bytes), TAG, "send command failed");
-        vTaskDelay(pdMS_TO_TICKS(init_cmds[i].delay_ms));
+            if (is_cmd_overwritten)
+            {
+                ESP_LOGW(TAG, "The %02Xh command has been used and will be overwritten by external initialization sequence", init_cmds[i].cmd);
+            }
+
+            ESP_ERROR_CHECK(esp_lcd_panel_io_tx_param(io, init_cmds[i].cmd, init_cmds[i].data, 
+                                                      init_cmds[i].data_bytes));
+            vTaskDelay(pdMS_TO_TICKS(init_cmds[i].delay_ms));
+        }
     }
+
     ESP_LOGI(TAG, "send init commands success");
 
     return ESP_OK;
@@ -393,34 +400,34 @@ static esp_err_t panel_st7735_sleep(esp_lcd_panel_handle_t panel, bool sleep) {
             // Add backlight p mosfet gate gpio toggle 
             gpio_manager_backlight_off();
             cmd = ST7735_DISPOFF;
-            ESP_RETURN_ON_ERROR(esp_lcd_panel_io_tx_param(io, cmd, NULL, 0), TAG, "off command failed");
-            //10ms wait
-            vTaskDelay(pdMS_TO_TICKS(10));
-            cmd = ST7735_SLPIN;
-            ESP_RETURN_ON_ERROR(esp_lcd_panel_io_tx_param(io, cmd, NULL, 0), TAG, "sleep command failed");
-            //Mandatory 120ms stabilization
-            vTaskDelay(pdMS_TO_TICKS(120));
+            WITH_SLEEP_LOCK() {
+                ESP_ERROR_CHECK(esp_lcd_panel_io_tx_param(io, cmd, NULL, 0));
+                //10ms wait
+                vTaskDelay(pdMS_TO_TICKS(10));
+                cmd = ST7735_SLPIN;
+                ESP_ERROR_CHECK(esp_lcd_panel_io_tx_param(io, cmd, NULL, 0));
+                //Mandatory 120ms stabilization
+                vTaskDelay(pdMS_TO_TICKS(120));
+            }
             break;
         case false :
             cmd = ST7735_SLPOUT;
-            ESP_RETURN_ON_ERROR(esp_lcd_panel_io_tx_param(io, cmd, NULL, 0), TAG, "sleep command failed");
-            // Mandatory 120ms for display to stabilize
-            vTaskDelay(pdMS_TO_TICKS(120));
-            ESP_RETURN_ON_ERROR(esp_lcd_panel_io_tx_param(io, LCD_CMD_MADCTL, &st7735->madctl_val, 1),
-                                TAG, "restore madctl failed");
-            ESP_RETURN_ON_ERROR(esp_lcd_panel_io_tx_param(io, LCD_CMD_COLMOD, &st7735->colmod_val, 1), 
-                                TAG, "restore colmod failed");
-            ESP_RETURN_ON_ERROR(esp_lcd_panel_io_tx_param(io, ST7735_GMCTRP1,
-                                (uint8_t[]){0x02, 0x1c, 0x07, 0x12, 0x37, 0x32, 0x29, 0x2d,
-                                 0x29, 0x25, 0x2B, 0x39, 0x00, 0x01, 0x03, 0x10}, 16), 
-                                TAG, "restore pos gamma failed");
-            ESP_RETURN_ON_ERROR(esp_lcd_panel_io_tx_param(io, ST7735_GMCTRN1,
-                                (uint8_t[]){0x03, 0x1d, 0x07, 0x06, 0x2E, 0x2C, 0x29, 0x2D, 0x2E, 
-                                0x2E, 0x37, 0x3F, 0x00, 0x00, 0x02, 0x10}, 16), 
-                                TAG, "restore neg gamma failed");
-            cmd = ST7735_DISPON;
-            ESP_RETURN_ON_ERROR(esp_lcd_panel_io_tx_param(io, cmd, NULL, 0), TAG, "on command failed");
-            vTaskDelay(pdMS_TO_TICKS(20));
+            WITH_SLEEP_LOCK() {
+                ESP_ERROR_CHECK(esp_lcd_panel_io_tx_param(io, cmd, NULL, 0));
+                // Mandatory 120ms for display to stabilize
+                vTaskDelay(pdMS_TO_TICKS(120));
+                ESP_ERROR_CHECK(esp_lcd_panel_io_tx_param(io, LCD_CMD_MADCTL, &st7735->madctl_val, 1));
+                ESP_ERROR_CHECK(esp_lcd_panel_io_tx_param(io, LCD_CMD_COLMOD, &st7735->colmod_val, 1)); 
+                ESP_ERROR_CHECK(esp_lcd_panel_io_tx_param(io, ST7735_GMCTRP1,
+                                    (uint8_t[]){0x02, 0x1c, 0x07, 0x12, 0x37, 0x32, 0x29, 0x2d,
+                                     0x29, 0x25, 0x2B, 0x39, 0x00, 0x01, 0x03, 0x10}, 16)); 
+                ESP_ERROR_CHECK(esp_lcd_panel_io_tx_param(io, ST7735_GMCTRN1,
+                                    (uint8_t[]){0x03, 0x1d, 0x07, 0x06, 0x2E, 0x2C, 0x29, 0x2D, 0x2E, 
+                                    0x2E, 0x37, 0x3F, 0x00, 0x00, 0x02, 0x10}, 16)); 
+                cmd = ST7735_DISPON;
+                ESP_ERROR_CHECK(esp_lcd_panel_io_tx_param(io, cmd, NULL, 0));
+                vTaskDelay(pdMS_TO_TICKS(20));
+            }
             // Turn backlight back on
             gpio_manager_power_backlight();
             break;

@@ -12,4 +12,5 @@ idf_component_register(
     PRIV_REQUIRES
         common
         gpio_manager
+        sleep_lock_service
 )

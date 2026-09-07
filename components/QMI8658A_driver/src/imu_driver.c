@@ -4,6 +4,7 @@
 #include <freertos/task.h>
 #include <imu_register_defs.h>
 #include <esp_log.h>
+#include <sleep_lock_service.h>
 
 static qmi8658_bus_t imu_interface;
 static const char* TAG = "IMU Driver";
@@ -96,17 +97,20 @@ static imu_err_t execute_sequential_cmds(const qmi8658_cmd_t *cmds, int cmd_len)
     assert(cmd_len!=0);
     assert(cmds);
     imu_err_t success = IMU_OK;
-    for(int i=0; i<cmd_len;i++) {
-        ESP_LOGD(TAG, "Cmd : %02X Data : %02X", cmds[i].reg_addr, cmds[i].data);
-        success = imu_interface.write(imu_interface.intf_ptr, cmds[i].reg_addr,
-                                      &cmds[i].data, sizeof(uint8_t));
-        if(success != IMU_OK) {
-            ESP_LOGE(TAG, "Failed in command : %u", cmds[i].reg_addr);
-            return success;
-        }
-        if(cmds[i].delay_ms != 0) {
-            TickType_t ticks = pdMS_TO_TICKS(cmds[i].delay_ms);
-            vTaskDelay(ticks == 0 ? 1 : ticks);
+    WITH_SLEEP_LOCK() {
+        for(int i=0; i<cmd_len;i++) {
+            ESP_LOGD(TAG, "Cmd : %02X Data : %02X", cmds[i].reg_addr, cmds[i].data);
+            success = imu_interface.write(imu_interface.intf_ptr, cmds[i].reg_addr,
+                                          &cmds[i].data, sizeof(uint8_t));
+            if(success != IMU_OK) {
+                ESP_LOGE(TAG, "Failed in command : %u", cmds[i].reg_addr);
+                sleep_lock_service_release_lock();
+                return success;
+            }
+            if(cmds[i].delay_ms != 0) {
+                TickType_t ticks = pdMS_TO_TICKS(cmds[i].delay_ms);
+                vTaskDelay(ticks == 0 ? 1 : ticks);
+            }
         }
     }
     return success;
@@ -121,26 +125,37 @@ static imu_err_t ctrl9_handshake(uint8_t cmd) {
     if(success != IMU_OK) return success;
     uint8_t ack_cmd = QMI8658A_CTRL9_CMD_ACK;
     bool ack_sent = false;
-    while(elapsed_ms < timeout_ms) {
-        uint8_t status = 0;
-        success = imu_interface.read(imu_interface.intf_ptr, QMI8658A_REG_STATUSINT, 
-                                     &status, sizeof(uint8_t));
-        if(success != IMU_OK) return success;
-        if(ack_sent && 
-           ((status & QMI8658A_STATUSINT_CMD_DONE_MASK) == 0x00)) {
-            return IMU_OK;
+    
+    WITH_SLEEP_LOCK() {
+        while(elapsed_ms < timeout_ms) {
+            uint8_t status = 0;
+            success = imu_interface.read(imu_interface.intf_ptr, QMI8658A_REG_STATUSINT, 
+                                         &status, sizeof(uint8_t));
+            if(success != IMU_OK) {
+                sleep_lock_service_release_lock();
+                return success;
+            }
+            if(ack_sent && 
+               ((status & QMI8658A_STATUSINT_CMD_DONE_MASK) == 0x00)) {
+                sleep_lock_service_release_lock();
+                return IMU_OK;
+            }
+            if(!ack_sent && 
+               ((status & QMI8658A_STATUSINT_CMD_DONE_MASK) == QMI8658A_STATUSINT_CMD_DONE_MASK)) {
+                success = imu_interface.write(imu_interface.intf_ptr, QMI8658A_REG_CTRL9, 
+                                              &ack_cmd, sizeof(uint8_t));
+                if(success != IMU_OK) {
+                    sleep_lock_service_release_lock();
+                    return success;
+                }
+                ack_sent = true;
+            }
+            TickType_t ticks = pdMS_TO_TICKS(delay_ms);
+            vTaskDelay(ticks == 0 ? 1 : ticks);
+            elapsed_ms += delay_ms;
         }
-        if(!ack_sent && 
-           ((status & QMI8658A_STATUSINT_CMD_DONE_MASK) == QMI8658A_STATUSINT_CMD_DONE_MASK)) {
-            success = imu_interface.write(imu_interface.intf_ptr, QMI8658A_REG_CTRL9, 
-                                          &ack_cmd, sizeof(uint8_t));
-            if(success != IMU_OK) return success;
-            ack_sent = true;
-        }
-        TickType_t ticks = pdMS_TO_TICKS(delay_ms);
-        vTaskDelay(ticks == 0 ? 1 : ticks);
-        elapsed_ms += delay_ms;
     }
+    
     ESP_LOGE(TAG, "Timeout in CTRL9 handshake cmd : 0x%02X. Skipping", cmd);
     return IMU_FAILED;
 }
@@ -171,64 +186,92 @@ imu_err_t imu_reset(void) {
         .delay_ms = 15
     };
     imu_err_t success = IMU_OK;
-    success = imu_interface.write(imu_interface.intf_ptr, reset_cmd.reg_addr, 
-                                  &reset_cmd.data, sizeof(uint8_t));
-    if(success != IMU_OK) {
-        ESP_LOGE(TAG, "Failed to write reset command");
-        return success;
-    }
-    TickType_t ticks = pdMS_TO_TICKS(reset_cmd.delay_ms);
-    vTaskDelay(ticks == 0 ? 1 : ticks);
-    uint8_t dev = 0;
-    success = imu_interface.read(imu_interface.intf_ptr, QMI8658A_REG_WHO_AM_I, &dev, sizeof(uint8_t));
-    if(success!= IMU_OK || dev != QMI8658A_WHO_AM_I_VAL) {
-        ESP_LOGE(TAG, "Failed to verify IMU identity");
-        return IMU_FAILED;
+    WITH_SLEEP_LOCK() {
+        success = imu_interface.write(imu_interface.intf_ptr, reset_cmd.reg_addr, 
+                                      &reset_cmd.data, sizeof(uint8_t));
+        if(success != IMU_OK) {
+            ESP_LOGE(TAG, "Failed to write reset command");
+            sleep_lock_service_release_lock();
+            return success;
+        }
+        TickType_t ticks = pdMS_TO_TICKS(reset_cmd.delay_ms);
+        vTaskDelay(ticks == 0 ? 1 : ticks);
+        uint8_t dev = 0;
+        success = imu_interface.read(imu_interface.intf_ptr, QMI8658A_REG_WHO_AM_I, &dev, sizeof(uint8_t));
+        if(success!= IMU_OK || dev != QMI8658A_WHO_AM_I_VAL) {
+            ESP_LOGE(TAG, "Failed to verify IMU identity");
+            sleep_lock_service_release_lock();
+            return IMU_FAILED;
+        }
     }
     return success;
 }
 
 imu_err_t imu_enable_accelerometer(void) {
     uint8_t data = 0;
-    imu_err_t success = imu_interface.read(imu_interface.intf_ptr, QMI8658A_REG_CTRL7, 
-                                           &data, sizeof(uint8_t));
-    if(success != IMU_OK) return success;
-    data = data | QMI8658A_CTRL7_AEN_MASK;
-    success = imu_interface.write(imu_interface.intf_ptr, QMI8658A_REG_CTRL7, &data, sizeof(uint8_t));
-    vTaskDelay(pdMS_TO_TICKS(120));
+    imu_err_t success; 
+    WITH_SLEEP_LOCK() {
+        success = imu_interface.read(imu_interface.intf_ptr, QMI8658A_REG_CTRL7, 
+                                               &data, sizeof(uint8_t));
+        if(success != IMU_OK) {
+            sleep_lock_service_release_lock();
+            return success;
+        }
+        data = data | QMI8658A_CTRL7_AEN_MASK;
+        success = imu_interface.write(imu_interface.intf_ptr, QMI8658A_REG_CTRL7, &data, sizeof(uint8_t));
+        vTaskDelay(pdMS_TO_TICKS(120));
+    }
     return success;
 }
 
 imu_err_t imu_disable_accelerometer(void) {
     uint8_t data = 0;
-    imu_err_t success = imu_interface.read(imu_interface.intf_ptr, QMI8658A_REG_CTRL7, 
-                                           &data, sizeof(uint8_t));
-    if(success != IMU_OK) return success;
-    data = data & (~QMI8658A_CTRL7_AEN_MASK);
-    success = imu_interface.write(imu_interface.intf_ptr, QMI8658A_REG_CTRL7, &data, sizeof(uint8_t));
-    vTaskDelay(pdMS_TO_TICKS(120));
+    imu_err_t success; 
+    WITH_SLEEP_LOCK() {
+        success = imu_interface.read(imu_interface.intf_ptr, QMI8658A_REG_CTRL7, 
+                                               &data, sizeof(uint8_t));
+        if(success != IMU_OK) {
+            sleep_lock_service_release_lock();
+            return success;
+        }
+        data = data & (~QMI8658A_CTRL7_AEN_MASK);
+        success = imu_interface.write(imu_interface.intf_ptr, QMI8658A_REG_CTRL7, &data, sizeof(uint8_t));
+        vTaskDelay(pdMS_TO_TICKS(120));
+    }
     return success;
 }
 
 imu_err_t imu_enable_gyro(void) {
     uint8_t data = 0;
-    imu_err_t success = imu_interface.read(imu_interface.intf_ptr, QMI8658A_REG_CTRL7, 
-                                           &data, sizeof(uint8_t));
-    if(success != IMU_OK) return success;
-    data = data | QMI8658A_CTRL7_GEN_MASK;
-    success = imu_interface.write(imu_interface.intf_ptr, QMI8658A_REG_CTRL7, &data, sizeof(uint8_t));
-    vTaskDelay(pdMS_TO_TICKS(120));
+    imu_err_t success; 
+    WITH_SLEEP_LOCK() {
+        success = imu_interface.read(imu_interface.intf_ptr, QMI8658A_REG_CTRL7, 
+                                               &data, sizeof(uint8_t));
+        if(success != IMU_OK) {
+            sleep_lock_service_release_lock();
+            return success;
+        }
+        data = data | QMI8658A_CTRL7_GEN_MASK;
+        success = imu_interface.write(imu_interface.intf_ptr, QMI8658A_REG_CTRL7, &data, sizeof(uint8_t));
+        vTaskDelay(pdMS_TO_TICKS(120));
+    }
     return success;
 }
 
 imu_err_t imu_disable_gyro(void) {
     uint8_t data = 0;
-    imu_err_t success = imu_interface.read(imu_interface.intf_ptr, QMI8658A_REG_CTRL7, 
-                                           &data, sizeof(uint8_t));
-    if(success != IMU_OK) return success;
-    data = data & (~QMI8658A_CTRL7_GEN_MASK);
-    success = imu_interface.write(imu_interface.intf_ptr, QMI8658A_REG_CTRL7, &data, sizeof(uint8_t));
-    vTaskDelay(pdMS_TO_TICKS(120));
+    imu_err_t success; 
+    WITH_SLEEP_LOCK() {
+        success = imu_interface.read(imu_interface.intf_ptr, QMI8658A_REG_CTRL7, 
+                                               &data, sizeof(uint8_t));
+        if(success != IMU_OK) {
+            sleep_lock_service_release_lock();
+            return success;
+        }
+        data = data & (~QMI8658A_CTRL7_GEN_MASK);
+        success = imu_interface.write(imu_interface.intf_ptr, QMI8658A_REG_CTRL7, &data, sizeof(uint8_t));
+        vTaskDelay(pdMS_TO_TICKS(120));
+    }
     return success;
 } 
 
@@ -334,14 +377,19 @@ imu_err_t imu_enable_pedometer(void) {
     if(success != IMU_OK) return success;
     if(gyro_enabled) success = imu_enable_gyro();
     if(success != IMU_OK) return success;
-    vTaskDelay(pdMS_TO_TICKS(120));
-
-    data = 0;
-    success = imu_interface.read(imu_interface.intf_ptr, QMI8658A_REG_CTRL8, &data, sizeof(uint8_t));
-    if(success != IMU_OK) return success;
-    data = data | QMI8658A_CTRL8_PEDO_EN_MASK;
-    success = imu_interface.write(imu_interface.intf_ptr, QMI8658A_REG_CTRL8, &data, sizeof(uint8_t));
-
+    
+    WITH_SLEEP_LOCK() {
+        vTaskDelay(pdMS_TO_TICKS(120));
+        data = 0;
+        success = imu_interface.read(imu_interface.intf_ptr, QMI8658A_REG_CTRL8, &data, sizeof(uint8_t));
+        if(success != IMU_OK) {
+            sleep_lock_service_release_lock();
+            return success;
+        }
+        data = data | QMI8658A_CTRL8_PEDO_EN_MASK;
+        success = imu_interface.write(imu_interface.intf_ptr, QMI8658A_REG_CTRL8, &data, sizeof(uint8_t));
+    }
+    
     return success;
 }
 
@@ -414,7 +462,11 @@ imu_err_t imu_setup_wake_on_motion(void) {
     bool accel_enabled = (data & QMI8658A_CTRL7_AEN_MASK) == QMI8658A_CTRL7_AEN_MASK;
     bool gyro_enabled = (data & QMI8658A_CTRL7_GEN_MASK) == QMI8658A_CTRL7_GEN_MASK;
     success = imu_enter_low_power_mode();
-    vTaskDelay(pdMS_TO_TICKS(120));
+    
+    WITH_SLEEP_LOCK() {
+        vTaskDelay(pdMS_TO_TICKS(120));
+    }
+    
     if(success != IMU_OK) return success;
     uint8_t wom_threshold = 100;
     uint8_t wom_int = (0b00 << 6) | 15;

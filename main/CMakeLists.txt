@@ -17,6 +17,7 @@ idf_component_register(
         nvs_flash
         tick_manager
         power_manager
+        sleep_lock_service
         gpio_manager
         notification_manager
         storage_manager

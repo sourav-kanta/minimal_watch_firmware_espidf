@@ -15,6 +15,5 @@ idf_component_register(
         esp_pm
         ui_manager
         runtime_manager
-        tick_manager
         gpio_manager
 )

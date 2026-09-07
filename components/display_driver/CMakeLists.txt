@@ -13,4 +13,5 @@ idf_component_register(
         common
         esp_lcd
         gpio_manager
+        sleep_lock_service
 )
