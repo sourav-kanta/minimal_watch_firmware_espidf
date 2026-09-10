@@ -165,6 +165,11 @@ imu_err_t imu_init(const imu_params_t* params) {
     int cmd_len = sizeof(init_cmds) / sizeof(qmi8658_cmd_t);
     imu_err_t success = IMU_OK;
     uint8_t dev = 0;
+    success = imu_reset();
+    if(success != IMU_OK) {
+        ESP_LOGE(TAG, "Failed in resetting IMU");
+        return success;
+    }
     success = imu_interface.read(imu_interface.intf_ptr, QMI8658A_REG_WHO_AM_I, &dev, sizeof(uint8_t));
     if(success!= IMU_OK || dev != QMI8658A_WHO_AM_I_VAL) {
         ESP_LOGE(TAG, "Failed to verify IMU identity : %u", dev);

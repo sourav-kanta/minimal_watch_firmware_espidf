@@ -36,6 +36,8 @@ static bool initialized = false;
 static const int runtime_lock_timeout_ms = 50;
 static window_ctx_t window_ctx;
 static runtime_state_t work_state = RUNTIME_STATE_UI_ACTIVE;
+static bool shutdown_initialized = false;
+static SemaphoreHandle_t shutdown_sem = NULL;
 
 // Needs to be called from locked state
 static void drain_pending_queue(QueueHandle_t queue_src, QueueHandle_t queue_dest) {
@@ -90,6 +92,9 @@ static void set_runtime_state(runtime_state_t target_state) {
             watchdog_force_all_mandatory_abort();
             worker_pool_suspend_all();
             ESP_LOGD(TAG, "Worker window stopped, sleeping");
+            if(shutdown_initialized && shutdown_sem) {
+                xSemaphoreGive(shutdown_sem);
+            }
         }
     }
 }
@@ -258,6 +263,7 @@ void runtime_manager_init(void) {
     }
     active_hook_count = 0;
     runtime_state = RUNTIME_STATE_SLEEP;
+    shutdown_initialized = false;
     memset(&window_ctx, 0, sizeof(window_ctx_t));
     ESP_LOGI(TAG, "Runtime manager initialized");
     worker_pool_init(user_work, system_work);
@@ -270,12 +276,25 @@ void runtime_manager_init(void) {
 }
 
 void runtime_manager_deinit(void) {
-    set_runtime_state(RUNTIME_STATE_SLEEP);
+    shutdown_initialized = true;
+    shutdown_sem = xSemaphoreCreateBinary();
+    active_hook_count = 0;
+
+    // 3 sec wait for workers to finish
+    if(xSemaphoreTake(shutdown_sem, pdMS_TO_TICKS(3*1000))) {
+        ESP_LOGI(TAG, "All pending processing done. Safe to shutoff manager");
+    }
+    else {
+        ESP_LOGE(TAG, "Failed to finish work before shutdown, forcing quit");
+        set_runtime_state(RUNTIME_STATE_SLEEP);
+    }
+    vSemaphoreDelete(shutdown_sem);
+    shutdown_sem = NULL;
+    worker_pool_deinit();
     event_unsubscribe(EVENT_WORK_TICK, start_work_cb);
     safe_timer_cleanup(&window_ctx.total_window_timer);
     safe_timer_cleanup(&window_ctx.grace_period_timer);
     safe_timer_cleanup(&window_ctx.curfew_settlement_timer);
-    worker_pool_deinit();
     if(user_work) {
         vQueueDelete(user_work);
         user_work = NULL;
@@ -296,7 +315,6 @@ void runtime_manager_deinit(void) {
         vSemaphoreDelete(runtime_lock);
         runtime_lock = NULL;
     }
-    active_hook_count = 0;
     initialized = false;
 }
 
@@ -338,6 +356,11 @@ bool schedule_user_work(const runtime_work_item_t *item) {
         ESP_LOGW(TAG, "Invalid user work, skipping");
         return false;
     }
+    if(shutdown_initialized) {
+        ESP_LOGE(TAG, "No longer accepting work. Shutting down!");
+        return false;
+    }
+
     BaseType_t result = pdPASS;
     WITH_RUNTIME_LOCK() {
         if(runtime_state == RUNTIME_STATE_GRACE_PERIOD) {
@@ -356,6 +379,11 @@ bool schedule_system_work(const runtime_work_item_t *item) {
         ESP_LOGW(TAG, "Invalid user work, skipping");
         return false;
     }
+    if(shutdown_initialized) {
+        ESP_LOGE(TAG, "No longer accepting work. Shutting down!");
+        return false;
+    }
+
     BaseType_t result = pdPASS;
     WITH_RUNTIME_LOCK() {
         if(runtime_state == RUNTIME_STATE_GRACE_PERIOD) {
@@ -370,6 +398,11 @@ bool schedule_system_work(const runtime_work_item_t *item) {
 
 bool runtime_manager_register_hook(curfew_hook_t hook) {
     if(!initialized || !hook) return false;
+    if(shutdown_initialized) {
+        ESP_LOGE(TAG, "No longer accepting hooks. Shutting down!");
+        return false;
+    }
+
     bool success = true;
     WITH_RUNTIME_LOCK() {
         if(active_hook_count >= MAX_CURFEW_HOOKS) {

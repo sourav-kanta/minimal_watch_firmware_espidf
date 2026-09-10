@@ -215,3 +215,17 @@ bool release_wakelock(const application_t* req_app) {
     wakelock_manager_release_wakelock();
     return true;
 }
+
+bool trigger_dfu_over_uart(const application_t* req_app) {
+    if(!req_app) return false;
+    if(!check_app_permission(req_app, APP_PERM_SYSTEM)) {
+        ESP_LOGE(TAG, "System app reserved API. Failed!");
+        return false;
+    }
+    event_t dfu_start_ev = {
+        .ev = EVENT_DFU_START,
+        .payload_len = 0,
+        .data = NULL
+    };
+    return event_publish(&dfu_start_ev);
+}

@@ -287,7 +287,9 @@ void gpio_manager_deinit(void) {
     } else {
         ESP_LOGE(TAG, "Failed to uninstall ISR service: %s", esp_err_to_name(err));
     }
-    
+
+    ledc_stop(LEDC_LOW_SPEED_MODE, DISPLAY_BACKLIGHT_CHANNEL, 0);
+    ledc_timer_pause(LEDC_LOW_SPEED_MODE, backlight_timer);    
     if(adc_handle) {
         ESP_ERROR_CHECK(adc_oneshot_del_unit(adc_handle));
         adc_handle = NULL;
@@ -298,10 +300,12 @@ void gpio_manager_deinit(void) {
     }
 
     configure_deep_sleep_pin_parking();
-    uint64_t ext1_wakeup_pin_mask = (1ULL << ENCODER_KEY_OK) | 
-                                    (1ULL << SYSTEM_PIN_WAKEUP) | 
-                                    (1ULL << SYSTEM_PIN_LBO);
+    uint64_t ext1_wakeup_pin_mask = (1ULL << ENCODER_KEY_OK);
+                                    //| (1ULL << SYSTEM_PIN_LBO); uncomment
+                                    //after soldering battery
     ESP_ERROR_CHECK(esp_sleep_enable_ext1_wakeup(ext1_wakeup_pin_mask, ESP_EXT1_WAKEUP_ANY_LOW));    
+    //ESP_ERROR_CHECK(esp_sleep_enable_ext0_wakeup(SYSTEM_PIN_WAKEUP, 1));
+    esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_TIMER);
 
     initialized = false;
 }

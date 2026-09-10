@@ -134,16 +134,16 @@ void update_wf(wf_update_payload_t* update_data) {
 void delete_wf(void) {
     WITH_UI_LOCK() {
         lv_obj_delete(base_obj);
+        hr_hand = NULL;
+        min_hand = NULL;
+        sec_hand = NULL;
+        date_lbl = NULL;
+        day_lbl = NULL;
+        month_lbl = NULL;
+        base_obj = NULL;
+        weather_lbl = NULL;
+        battery_lbl = NULL;
     }
-    hr_hand = NULL;
-    min_hand = NULL;
-    sec_hand = NULL;
-    date_lbl = NULL;
-    day_lbl = NULL;
-    month_lbl = NULL;
-    base_obj = NULL;
-    weather_lbl = NULL;
-    battery_lbl = NULL;
 }
 
 

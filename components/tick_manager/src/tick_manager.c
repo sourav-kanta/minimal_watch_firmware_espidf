@@ -35,7 +35,7 @@ void tick_manager_init(void) {
     esp_timer_create_args_t work_timer_args = {
         .callback = work_timer_cb,
         .dispatch_method = ESP_TIMER_TASK,
-        .name = "Watchface Update Timer"
+        .name = "Work Timer"
     };
     esp_timer_create(&work_timer_args, &work_tick_timer);
 }

@@ -7,6 +7,8 @@
 #include <string.h>
 #include <esp_timer.h>
 #include <alarm_manager_internal.h>
+#include <sys/time.h>
+#include <soc/rtc.h>
 
 #include <state_manager.h>
 
@@ -28,10 +30,11 @@ static void update_time_state_cb(const event_t* event) {
     time_sync_t sync_time = {0};
     const uint32_t* epoch = (const uint32_t*) event->data;
     sync_time.last_sync_time = *epoch;
-    sync_time.time_sync_uptime = USEC_TO_SEC(esp_timer_get_time());
     sync_time.valid = 1;
     memcpy(&watch_state.time_state, &sync_time, sizeof(time_sync_t));
     state_request_complete(&state_registry.time);
+    struct timeval tv = { .tv_sec = *epoch, .tv_usec = 0 };
+    settimeofday(&tv, NULL);
     ESP_LOGI(TAG, "Updated system time");
 
     // Revalidate all alarms
@@ -90,6 +93,10 @@ void state_manager_init(void) {
     if(!success) {
         ESP_LOGE(TAG, "Time sync ble request failed");
     }
+    else {
+        state_registry.time.last_req_time = time(NULL);
+        state_registry.time.request_pending = true;
+    }
     ble_req_t weather_req = {
         .req_code = UPDATE_SYSTEM_WEATHER,
         .app_id = 0,
@@ -114,9 +121,9 @@ void state_manager_deinit(void) {
 uint32_t get_epoch_time(void) {
     if (!watch_state.time_state.valid)
         return 0;
-    return USEC_TO_SEC(esp_timer_get_time()) -
-           watch_state.time_state.time_sync_uptime +
-           watch_state.time_state.last_sync_time; 
+    time_t now;
+    time(&now);
+    return (uint32_t)now;
 }
 
 const hourly_weather_t* get_weather_today(void) {
@@ -125,4 +132,42 @@ const hourly_weather_t* get_weather_today(void) {
 
 void state_manager_check_validity(void) {
     // Unimplemented
+    bool fire_time_sync = false;
+    uint32_t current_uptime = time(NULL);
+
+    if(watch_state.time_state.valid) {
+        if(get_epoch_time() - watch_state.time_state.last_sync_time > 60*60) {
+            
+            if (current_uptime - state_registry.time.last_req_time >= 5*60) {
+                state_registry.time.last_req_time = current_uptime;
+                state_registry.time.request_pending = true;
+                fire_time_sync = true;
+            }
+        }
+    }
+    else {
+        if(current_uptime - state_registry.time.last_req_time >= 5*60) {
+            state_registry.time.last_req_time = current_uptime;
+            state_registry.time.request_pending = true;
+            fire_time_sync = true;
+        }
+    }
+
+    if(fire_time_sync) {
+        ble_req_t time_req = {
+            .req_code = UPDATE_SYSTEM_TIME,
+            .app_id = 0,
+            .req_data_len = 0,
+            .req_data = NULL 
+        };
+        event_t ble_ev = {
+           .ev = EVENT_BLE_REQUEST,
+           .data = &time_req,
+           .payload_len = sizeof(ble_req_t)
+        };
+        bool success = event_publish(&ble_ev);
+        if(!success) {
+            ESP_LOGE(TAG, "Time sync ble request failed");
+        }
+    }
 }

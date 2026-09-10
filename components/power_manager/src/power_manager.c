@@ -21,6 +21,7 @@ static const char* TAG = "Power Manager";
 static int64_t sleep = 0;
 static QueueHandle_t power_queue = NULL;
 static TaskHandle_t power_task = NULL;
+static TaskHandle_t main_task = NULL;
 static bool initialized = false;
 static power_state_t state = POWER_STATE_SLEEP;
 static esp_pm_lock_handle_t hw_sleep_lock = NULL;
@@ -118,10 +119,38 @@ void power_manager_allow_sleep(void) {
     ESP_ERROR_CHECK(esp_pm_lock_release(hw_sleep_lock));
 }
 
+void power_manager_engage_deep_sleep(void) {
+    ESP_LOGI(TAG, "Goodbye. Dropping to deep sleep!");
+    esp_deep_sleep_start();
+}
 
-void power_manager_init(void) {
+static void no_motion_detected_handler(const event_t *event) {
+    if(main_task) {
+        xTaskNotify(main_task, POWER_MANAGER_SHUTDOWN_REASON_DEEP_SLEEP, eSetValueWithOverwrite);
+        main_task = NULL;
+        ESP_LOGI(TAG, "Received no motion trigger, shutdown commencing");
+    }
+    else {
+        ESP_LOGE(TAG, "Main task is already shutting down");
+    }
+}
+
+static void dfu_update_start_handler(const event_t *event) {
+    if(main_task) {
+        power_manager_prevent_sleep();
+        xTaskNotify(main_task, POWER_MANAGER_SHUTDOWN_REASON_DFU, eSetValueWithOverwrite);
+        main_task = NULL;
+        ESP_LOGI(TAG, "Received DFU update event, shutdown commencing");
+    }
+    else {
+        ESP_LOGE(TAG, "Main task is already shutting down");
+    }
+}
+
+void power_manager_init(TaskHandle_t task) {
     if(initialized) return;
     ESP_LOGI(TAG, "Initializing Power manager");
+    main_task = task;
     power_queue = xQueueCreate(4, sizeof(power_cmd_t));
     if (power_queue == NULL) {
         ESP_LOGE(TAG, "Failed creating power queue");
@@ -159,6 +188,8 @@ void power_manager_init(void) {
     event_subscribe(EVENT_UI_INACTIVE, ui_inactive_event_cb);
     event_subscribe(EVENT_WORK_TICK, sleep_debug_cb);
     event_subscribe(EVENT_ALARM_TRIGGERED, alarm_triggered_cb);
+    //event_subscribe(EVENT_WATCH_STATIONARY, no_motion_detected_handler);
+    event_subscribe(EVENT_DFU_START, dfu_update_start_handler);
     ESP_ERROR_CHECK(esp_pm_lock_create(ESP_PM_NO_LIGHT_SLEEP, 0, "Sleep lock", &hw_sleep_lock));
     assert(hw_sleep_lock);
     state = POWER_STATE_UI_ACTIVE;    
@@ -174,6 +205,8 @@ void power_manager_deinit(void) {
         ESP_ERROR_CHECK(esp_pm_lock_delete(hw_sleep_lock));
         hw_sleep_lock = NULL;
     }
+    //event_unsubscribe(EVENT_WATCH_STATIONARY, no_motion_detected_handler);
+    event_unsubscribe(EVENT_DFU_START, dfu_update_start_handler);
     event_unsubscribe(EVENT_ALARM_TRIGGERED, alarm_triggered_cb);
     event_unsubscribe(EVENT_UI_INACTIVE, ui_inactive_event_cb);
     event_unsubscribe(EVENT_WORK_TICK, sleep_debug_cb);

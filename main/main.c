@@ -19,6 +19,7 @@
 #include <wf_manager.h>
 #include <ui_base.h>
 #include <sleep_lock_service.h>
+#include <uart_ota.h>
 
 #include <settings_app.h>
 #include <weather_app.h>
@@ -32,9 +33,11 @@
 
 void app_main(void)
 {
+    TaskHandle_t main_taskhandle = xTaskGetCurrentTaskHandle();
+
     init_locks();
     event_manager_init();
-    power_manager_init();
+    power_manager_init(main_taskhandle);
     sleep_lock_interface_t sleep_lock_api = {
         .sleep_lock_acquire = power_manager_prevent_sleep,
         .sleep_lock_release = power_manager_allow_sleep,
@@ -95,12 +98,42 @@ void app_main(void)
     ui_base_register_tab(WATCHFACE, &watchface_tab);
     ui_base_register_tab(APP, &app_tab);
 
+    notification_manager_init();
     tick_manager_init();
     ui_on();
     tick_manager_generate_tick(TICK_WORK);
-    notification_manager_init();
 
-    while(1) {
-        vTaskDelay(portMAX_DELAY);
+    // Wait for 5 work ticks to confirm
+    vTaskDelay(pdMS_TO_TICKS(5*1000));
+    uart_ota_mark_firmware_valid();
+    ESP_LOGI("Main", "Marked firmware as valid");
+
+    shutdown_reason_t reason = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+
+    ui_manager_deinit();
+    ble_manager_deinit();
+    runtime_manager_deinit();
+    tick_manager_deinit();
+    notification_manager_deinit();
+    app_manager_deinit();
+    watchface_manager_deinit();
+    state_manager_deinit();
+    gpio_manager_deinit();
+    sensor_manager_deinit();
+    storage_manager_deinit();
+    sleep_lock_service_deinit();
+    
+    if(reason != POWER_MANAGER_SHUTDOWN_REASON_DFU) {
+        // Needs to keep the power lock alive
+        power_manager_deinit();
+    }
+    
+    event_manager_deinit();
+
+    if(reason == POWER_MANAGER_SHUTDOWN_REASON_DEEP_SLEEP) {
+        power_manager_engage_deep_sleep();
+    }
+    else if(reason == POWER_MANAGER_SHUTDOWN_REASON_DFU) {
+        uart_ota_start_firmware_update();
     }
 }

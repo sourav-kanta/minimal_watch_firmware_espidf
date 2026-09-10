@@ -18,7 +18,9 @@ target_include_directories(
 
 target_link_libraries(${COMPONENT_LIB} INTERFACE 
     "-Wl,--wrap=ble_manager_init"
+    "-Wl,--wrap=ble_manager_deinit"
     "-Wl,--wrap=init_display"
+    "-Wl,--wrap=deinit_display"
     "-Wl,--wrap=display_draw_bitmap"  
     "-Wl,--wrap=display_on"
     "-Wl,--wrap=display_off"
@@ -31,7 +33,9 @@ target_link_libraries(${COMPONENT_LIB} INTERFACE
     "-Wl,--wrap=ledc_set_duty"
     "-Wl,--wrap=ledc_update_duty"
     "-Wl,--wrap=sensor_manager_init"
+    "-Wl,--wrap=sensor_manager_deinit"
     "-Wl,--wrap=gpio_manager_read_battery_mv"
     "-Wl,--wrap=adc_cali_create_scheme_curve_fitting"
+    "-Wl,--wrap=adc_cali_delete_scheme_curve_fitting"
     "-Wl,--wrap=adc_calc_hw_calibration_code"
 )

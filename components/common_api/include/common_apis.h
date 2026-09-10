@@ -29,4 +29,6 @@ uint32_t get_ui_inactivity_timeout(void);
 bool acquire_wakelock(const application_t* req_app);
 bool release_wakelock(const application_t* req_app);
 
+bool trigger_dfu_over_uart(const application_t* req_app);
+
 #endif /* COMMON_APIS_H */
