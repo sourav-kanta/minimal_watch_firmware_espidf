@@ -127,17 +127,29 @@ void encoder_init(QueueHandle_t queue) {
 
 
 void encoder_deinit(void) {
-    esp_timer_stop(long_press_timer);
-    esp_timer_delete(long_press_timer);
-    esp_timer_stop(debounce_timer);
-    esp_timer_delete(debounce_timer);
     ESP_ERROR_CHECK(gpio_isr_handler_remove(ENCODER_KEY_OK));
-    ESP_ERROR_CHECK(pcnt_unit_stop(pcnt_unit));
-    ESP_ERROR_CHECK(pcnt_unit_disable(pcnt_unit));
+    if(long_press_timer) {
+        esp_timer_stop(long_press_timer);
+        esp_timer_delete(long_press_timer);
+        long_press_timer = NULL;
+    }
+    if(debounce_timer) {
+        esp_timer_stop(debounce_timer);
+        esp_timer_delete(debounce_timer);
+        debounce_timer = NULL;
+    }
+    if(pcnt_unit) {
+        ESP_ERROR_CHECK(pcnt_unit_stop(pcnt_unit));
+        ESP_ERROR_CHECK(pcnt_unit_disable(pcnt_unit));
+    }
     if(channel) {
         ESP_ERROR_CHECK(pcnt_del_channel(channel));
+        channel = NULL;
     }
-    ESP_ERROR_CHECK(pcnt_del_unit(pcnt_unit));
+    if(pcnt_unit) {
+        ESP_ERROR_CHECK(pcnt_del_unit(pcnt_unit));
+        pcnt_unit = NULL;
+    }
     xinputQueue = NULL;
     ESP_LOGI(TAG, "Encoder driver deinitialized");
 } 

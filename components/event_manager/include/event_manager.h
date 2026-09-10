@@ -14,6 +14,8 @@ typedef enum {
     EVENT_BLE_REQUEST,
     EVENT_TIME_SYNC,
     EVENT_WEATHER_SYNC,
+    EVENT_WATCH_STATIONARY,
+    EVENT_DFU_START,
     EVENT_COUNT
 } event_id_t;
 

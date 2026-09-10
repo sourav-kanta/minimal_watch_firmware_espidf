@@ -95,7 +95,11 @@ void worker_pool_recover_stalled_worker(worker_registry_t* worker, bool resume) 
     worker->type = temp.type;
     if(temp.type == WORK_TYPE_USER) {
         // Reinitialize the watchdog timers
-        watchdog_manager_init_stalled_worker(worker);
+        worker->soft_close = temp.soft_close;
+        worker->hard_close = temp.hard_close;
+        if (worker->soft_close == NULL || worker->hard_close == NULL) {
+            watchdog_manager_init_stalled_worker(worker);
+        }
     }
     BaseType_t result = xTaskCreate(pool_worker_entry, "Pool worker", WORKER_STACK_SIZE_BYTES,
                                     worker, RUNTIME_BASELINE_PRIORITY, &worker->task_handle);

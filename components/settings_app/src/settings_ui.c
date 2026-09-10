@@ -18,12 +18,14 @@ static const char* TAG = "Settings app";
 static popup_registry_t timeout_popup_registry;
 static popup_registry_t brightness_popup_registry;
 static popup_registry_t wf_popup_registry;
+static popup_registry_t confirm_popup_registry;
 static size_t wf_count = 0;
 static application_t settings_app;
 
 static void open_watchface_selection_popup(void *data);
 static void open_timeout_selection_popup(void *data);
 static void open_brightness_selection_popup(void *data);
+static void open_dfu_confirm_popup(void *data);
 
 static listview_t list_items[] = { 
     {
@@ -45,10 +47,10 @@ static listview_t list_items[] = {
         .title_click_cb = open_brightness_selection_popup
     },
     {
-        .title = "Unpair Phone",
+        .title = "Start DFU",
         .value = NULL,
         .data = NULL,
-        .title_click_cb = NULL
+        .title_click_cb = open_dfu_confirm_popup
     },
 };
 
@@ -178,6 +180,33 @@ static void open_brightness_selection_popup(void *data) {
                           item_count, select_brightness); 
 }
 
+static listview_t confirm_items[] = {
+    {
+        .title = "Yes",
+        .value = NULL,
+    },
+    {
+        .title = "No",
+        .value = NULL,
+    },
+}; 
+
+static void start_dfu_process(int index) {
+    if(index == 0) {
+        bool success = trigger_dfu_over_uart(&settings_app);
+        if(!success) {
+            ESP_LOGE(TAG, "Failed to trigger DFU. Skipping");
+        }
+    }
+}
+
+static void open_dfu_confirm_popup(void *data) {
+    assert(parent_container);
+    int item_count = sizeof(confirm_items) / sizeof(confirm_items[0]);
+    create_popup_listview(parent_container, &confirm_popup_registry, confirm_items, 
+                          item_count, start_dfu_process); 
+}
+
 void draw_settings_app_ui(lv_obj_t* parent) {
     assert(parent);
     const char* selected_wf = get_system_selected_watchface_name();
@@ -241,9 +270,11 @@ void delete_settings_app_ui(void) {
         ESP_LOGD(TAG, "Freed watchface list items");
     }
 
-    lv_obj_delete(base_container);
-    base_container = NULL;
-    parent_container = NULL;
+    WITH_UI_LOCK() {
+        lv_obj_delete(base_container);
+        base_container = NULL;
+        parent_container = NULL;
+    }
     wf_count = 0;
 }
 

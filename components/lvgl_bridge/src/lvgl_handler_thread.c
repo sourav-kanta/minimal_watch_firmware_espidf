@@ -68,8 +68,8 @@ static void lvgl_task(void *pvParameter) {
         xTaskNotifyWait(0, UINT32_MAX, NULL, ticks_to_delay);
     }
 
-    xSemaphoreGive(lvgl_exit_semaphore);
     worker_handle = NULL;
+    xSemaphoreGive(lvgl_exit_semaphore);
     vTaskDelete(NULL);
 }
 
@@ -152,7 +152,7 @@ void stop_lvgl_thread(void) {
         xTaskNotifyGive(worker_handle);
     }
     if(!lvgl_exit_semaphore) return;
-    //xSemaphoreTake(lvgl_exit_semaphore, 0);
+    
     if(xSemaphoreTake(lvgl_exit_semaphore, pdMS_TO_TICKS(100)) != pdTRUE) {
         ESP_LOGE(TAG, "Unable to join with stopped lvgl thread, proceeding anyway");
     }

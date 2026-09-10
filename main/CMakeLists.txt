@@ -31,4 +31,5 @@ idf_component_register(
         stopwatch_app
         brickbreaker_game
         watchface_mgr
+        uart_maintainence
 )

@@ -4,6 +4,7 @@
 #include <nimble/ble.h>
 #include <host/ble_hs.h>
 #include <host/ble_gap.h>
+#include <host/ble_gatt.h>
 #include <host/util/util.h>
 #include <services/gatt/ble_svc_gatt.h>
 #include <services/gap/ble_svc_gap.h>
@@ -20,22 +21,28 @@
 #include <ble_response_handler.h>
 #include <event_manager.h>
 #include <runtime_manager.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
 
 static const char *TAG = "BLE_MANAGER";
 
 typedef struct {
     uint16_t conn_handle;
     bool is_connected;
+    bool shutdown_initiated;
     bool notifications_enabled;
     uint16_t tx_val_handle;
     uint16_t effective_mtu;
+    SemaphoreHandle_t shutdown_sem;
 } ble_context_t;
 
 static ble_context_t g_ble = {
     .conn_handle = BLE_HS_CONN_HANDLE_NONE,
     .effective_mtu = 20,
     .is_connected = false,
-    .notifications_enabled = false
+    .shutdown_initiated = false,
+    .notifications_enabled = false,
+    .shutdown_sem = NULL,
 };
 
 static struct ble_gap_adv_params adv_params = {
@@ -142,7 +149,14 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
             g_ble.conn_handle = BLE_HS_CONN_HANDLE_NONE;
             g_ble.effective_mtu = 20;
             rx_reset_context();
-            start_advertising();
+            if(!g_ble.shutdown_initiated) {
+                start_advertising();
+            }
+            else {
+                if(g_ble.shutdown_sem) {
+                    xSemaphoreGive(g_ble.shutdown_sem);
+                }
+            }
             break;
 
         case BLE_GAP_EVENT_MTU:
@@ -174,7 +188,9 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
             break;
         case BLE_GAP_EVENT_ADV_COMPLETE:
             ESP_LOGI(TAG, "Advertising completed");
-            start_advertising();
+            if(!g_ble.shutdown_initiated) {
+                start_advertising();
+            }
             break;
         default :
             ESP_LOGI(TAG, "Unhandled Gap Event : %d", event->type);
@@ -269,6 +285,13 @@ static void submit_ble_request(const event_t* event) {
 }
 
 void ble_manager_init(void) {
+    g_ble.is_connected = false;
+    g_ble.notifications_enabled = false;
+    g_ble.conn_handle = BLE_HS_CONN_HANDLE_NONE;
+    g_ble.effective_mtu = 20;
+    g_ble.shutdown_initiated = false;
+    g_ble.shutdown_sem = xSemaphoreCreateBinary();
+    assert(g_ble.shutdown_sem);
     ble_fifo_init();   
     ESP_ERROR_CHECK(nimble_port_init());    
     int rc;
@@ -295,13 +318,35 @@ void ble_manager_init(void) {
 }
 
 void ble_manager_deinit(void) {
+    g_ble.shutdown_initiated = true;
     runtime_manager_unregister_hook(populate_tx_buffers);
     runtime_manager_unregister_hook(process_rx_buffers);
     event_unsubscribe(EVENT_BLE_REQUEST, submit_ble_request);
+    if (g_ble.is_connected && g_ble.conn_handle != BLE_HS_CONN_HANDLE_NONE) {
+        assert(g_ble.shutdown_sem);
+        int rc = ble_gap_terminate(g_ble.conn_handle, BLE_ERR_REM_USER_CONN_TERM);
+        if(rc == 0) {
+            if (xSemaphoreTake(g_ble.shutdown_sem, pdMS_TO_TICKS(1000)) == pdTRUE) {
+                ESP_LOGI(TAG, "Disconnected from phone");
+            }
+            else {
+                ESP_LOGE(TAG, "Failed to disconnect phone, forcing shutdown");
+            }
+        }
+    }
+    else {
+        ble_gap_adv_stop();
+    }
+    ble_gatts_reset();
     int rc = nimble_port_stop();
     assert(rc == 0);
     nimble_port_deinit();
     ble_fifo_deinit();
+    g_ble.shutdown_initiated = false;
+    if (g_ble.shutdown_sem) {
+        vSemaphoreDelete(g_ble.shutdown_sem);
+        g_ble.shutdown_sem = NULL;
+    }
     ESP_LOGI(TAG, "BLE deinitialized");
 }
 

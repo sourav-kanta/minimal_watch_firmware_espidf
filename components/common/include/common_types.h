@@ -58,7 +58,6 @@ typedef struct {
 
 typedef struct {
     uint32_t last_sync_time;
-    uint32_t time_sync_uptime;
     uint8_t valid;
 } time_sync_t;
 

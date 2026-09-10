@@ -23,6 +23,7 @@ void (*callback) ();
 extern void init_fsm(void);
 static  uint32_t argb_buffer[128*160];
 static QueueHandle_t xinputQueue = NULL;
+static TaskHandle_t keyboard_task_handle = NULL;
 
 static void register_input(input_key_t key) {
     if (!xinputQueue)
@@ -183,14 +184,20 @@ void __wrap_encoder_init(QueueHandle_t queue) {
     printf("[QEMU MOCK] Encoder replaced by keyboard\n");
 
     xinputQueue = queue;
-    xTaskCreate(keyboard_task, "keyboard_input", 4096, NULL, 5, NULL);
+    xTaskCreate(keyboard_task, "keyboard_input", 4096, NULL, 5, &keyboard_task_handle);
 }
 
 void __wrap_encoder_deinit(void) {
-    printf("[QEMU MOCK] Keyboard encoder stopped\n");
+    printf("[QEMU MOCK] Mocked Keyboard encoder stopped\n");
+    vTaskDelete(keyboard_task_handle);
+    keyboard_task_handle = NULL;
 }
 
 void __wrap_ble_manager_init(void) {
+    printf("[QEMU MOCK] BLE driver bypassed successfully.\n");
+}
+
+void __wrap_ble_manager_deinit(void) {
     printf("[QEMU MOCK] BLE driver bypassed successfully.\n");
 }
 
@@ -265,6 +272,19 @@ bool __wrap_display_off(void) {
     return true;
 }
 
+void __wrap_deinit_display(void) {
+    printf("[QEMU MOCK] Intercepting deinit_display() function...\n");
+
+    __wrap_display_off();
+    if (qemu_mock_panel_handle) {
+        esp_lcd_panel_del(qemu_mock_panel_handle);
+        qemu_mock_panel_handle = NULL;
+    }
+
+    callback = NULL;
+    ESP_LOGI("QEMU_MOCK", "Virtual display deinitialized successfully");
+}
+
 bool __wrap_display_sleep(void) {
     printf("[QEMU DISPLAY] Screen Power -> OFF\n");
     __wrap_display_off();
@@ -302,8 +322,17 @@ void __wrap_sensor_manager_init(void) {
     return;
 }
 
+void __wrap_sensor_manager_deinit(void) {
+    printf("[QEMU MOCK] Sensor manager bypassed.\n");
+    return;
+}
+
 esp_err_t __wrap_adc_cali_create_scheme_curve_fitting(const adc_cali_curve_fitting_config_t *config, adc_cali_handle_t *ret_handle) {
     *ret_handle = (adc_cali_handle_t)0xDEADBEEF; 
+    return ESP_OK;
+}
+
+esp_err_t __wrap_adc_cali_delete_scheme_curve_fitting(const adc_cali_handle_t* ret) {
     return ESP_OK;
 }
 
