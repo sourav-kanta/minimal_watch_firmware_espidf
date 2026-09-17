@@ -112,7 +112,7 @@ static void dispatch_wf_update(const event_t *event) {
     if(!curr_wf) return;
     
     date_time_t date;
-    time_t time_val = (time_t) get_epoch_time();
+    time_t time_val = (time_t) state_manager_get_epoch_time();
     struct tm curr_time;
     if (gmtime_r(&time_val, &curr_time) != NULL) {
         date.day = curr_time.tm_mday;
@@ -125,13 +125,14 @@ static void dispatch_wf_update(const event_t *event) {
     }
 
     hourly_weather_t weather[24];
-    const hourly_weather_t *weather_today = get_weather_today();
+    const hourly_weather_t *weather_today = state_manager_get_weather_today();
     assert(weather_today);
     memcpy(weather, weather_today, sizeof(hourly_weather_t)*24);
     
     wf_update_payload_t payload = {
         .time = date,
-        .weather = weather[date.hr]
+        .weather = weather[date.hr],
+        .steps = state_manager_get_step_count(),
     };
     assert(curr_wf);
     assert(curr_wf->update_watchface);

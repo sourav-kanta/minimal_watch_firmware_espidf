@@ -8,6 +8,7 @@
 #include <esp_log.h>
 #include <sensor_manager.h>
 #include <battery_driver.h>
+#include <motion_detection_engine_stage1.h>
 
 static const char* TAG = "Sensor manager";
 static DRAM_ATTR uint8_t imu_fifo[800] __attribute__((aligned(32)));
@@ -21,6 +22,7 @@ static void process_imu_data(void *arg, runtime_abort_flag_t* flag) {
     ESP_LOGI(TAG, "IMU Temp = %d", temp_scaled_100); 
     
     size_t samples = sizeof(imu_fifo);
+
     imu_err = imu_read_fifo_buffer(imu_fifo, &samples);
     if(imu_err != IMU_OK) {
         ESP_LOGE(TAG, "Fifo read failed");
@@ -32,30 +34,24 @@ static void process_imu_data(void *arg, runtime_abort_flag_t* flag) {
         return;
     }
 
-    // 2 bytes each and 3 words for a single read
-    samples = (samples / 3) / 2; 
-    ESP_LOGI(TAG, "Read %u FIFO samples", samples);
-    
-    // Data starts from index 1 and max samples configured 128
-    // IMU on board is rotated -90 degree and soldered on the backside
-    // so x=y y=-x (z is fine as imu measures normal)
-    for(int i=samples*6; i>=1; i=i-6) {
-        uint8_t raw_z_h = imu_fifo[i];
-        uint8_t raw_z_l = imu_fifo[i-1];
-        uint8_t raw_y_h = imu_fifo[i-4];
-        uint8_t raw_y_l = imu_fifo[i-5];
-        uint8_t raw_x_h = imu_fifo[i-2];
-        uint8_t raw_x_l = imu_fifo[i-3];
+    ESP_LOGI(TAG, "Read %d bytes from IMU", samples);
 
-        int16_t raw_z = (int16_t)(((uint16_t)raw_z_l) | (((uint16_t)raw_z_h)<<8)); 
-        int16_t raw_x = (int16_t)(((uint16_t)raw_x_l) | (((uint16_t)raw_x_h)<<8)); 
-        int16_t raw_y = (int16_t)(((uint16_t)raw_y_l) | (((uint16_t)raw_y_h)<<8));
-        
-        // Each sample scaled 100 and converted from 8g to g
-        int sample_x = (int)(raw_x*100)/4096; 
-        int sample_y = -1 * (int)(raw_y*100)/4096; 
-        int sample_z = (int)(raw_z*100)/4096; 
-        ESP_LOGD(TAG, "X : %d, Y : %d, Z : %d", sample_x, sample_y, sample_z); 
+    if(samples == 0) {
+        return;
+    }
+
+    imu_stage1_result_t res;
+    stage1_process_motion_data(&imu_fifo[1], samples, &res);
+    ESP_LOGI(TAG, "Result - No motion : %s", res.no_motion ? "True" : "False");
+    ESP_LOGI(TAG, "Result - New steps : %lu", res.steps);
+    if(res.steps != 0) {
+        uint32_t new_steps = res.steps;
+        event_t step_event = {
+            .ev = EVENT_NEW_STEPS,
+            .data = &new_steps,
+            .payload_len = sizeof(new_steps),
+        };
+        event_publish(&step_event);
     }
     memset(imu_fifo, 0, sizeof(imu_fifo));
 } 
@@ -125,6 +121,7 @@ void sensor_manager_disarm_wakup_interrupt(void) {
 }
 
 void sensor_manager_init(void) {
+    stage1_init();
     bmp180_init();
     battery_driver_init();
     imu_err_t imu_err = IMU_OK;
@@ -151,4 +148,5 @@ void sensor_manager_deinit(void) {
     }
     battery_driver_deinit();
     bmp180_deinit();
+    stage1_deinit();
 }

@@ -7,6 +7,7 @@
 typedef struct {
     date_time_t time;
     hourly_weather_t weather;
+    uint32_t steps;
 } wf_update_payload_t;
 
 typedef struct {

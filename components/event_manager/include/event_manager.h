@@ -16,6 +16,7 @@ typedef enum {
     EVENT_WEATHER_SYNC,
     EVENT_WATCH_STATIONARY,
     EVENT_DFU_START,
+    EVENT_NEW_STEPS,
     EVENT_COUNT
 } event_id_t;
 
