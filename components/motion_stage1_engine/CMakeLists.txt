@@ -11,10 +11,4 @@ idf_component_register(
         "private"
     PRIV_REQUIRES
         common
-        event_manager
-        runtime_manager
-        QMI8658A_driver
-        BMP180_driver
-        battery_driver
-        motion_stage1_engine
 )

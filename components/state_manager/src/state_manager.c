@@ -50,6 +50,14 @@ static void update_weather_state_cb(const event_t* event) {
     ESP_LOGI(TAG, "Updated system weather");
 }
 
+static void update_steps_cb(const event_t* ev) {
+    assert(ev);
+    assert(ev->payload_len == sizeof(uint32_t));
+    assert(ev->data);
+    uint32_t* new_steps = ev->data;
+    watch_state.steps += *(new_steps);
+}
+
 void state_manager_init(void) {
     // Reset every thing on cold boot with unsynced time
     if(watch_state.time_state.valid != 1) {
@@ -58,7 +66,7 @@ void state_manager_init(void) {
         memset(&state_registry, 0, sizeof(state_registry_t));
     }
     // Clear expired weather data on hot or cold boot
-    if(get_epoch_time() > watch_state.weather_state.expires_at) {
+    if(state_manager_get_epoch_time() > watch_state.weather_state.expires_at) {
         ESP_LOGW(TAG, "Weather is invalid, wiping weather data");
         memset(&watch_state.weather_state, 0, sizeof(weather_sync_t));
         memset(&state_registry.weather, 0, sizeof(state_entry_t));
@@ -75,7 +83,9 @@ void state_manager_init(void) {
     bool success = event_subscribe(EVENT_TIME_SYNC, update_time_state_cb);
     assert(success);
     success = event_subscribe(EVENT_WEATHER_SYNC, update_weather_state_cb);
-    assert(success);    
+    assert(success);
+    success = event_subscribe(EVENT_NEW_STEPS, update_steps_cb);
+    assert(success);
     
     // Request sync anyway
     ble_req_t time_req = {
@@ -116,9 +126,10 @@ void state_manager_deinit(void) {
     alarm_manager_deinit();    
     event_unsubscribe(EVENT_TIME_SYNC, update_time_state_cb);
     event_unsubscribe(EVENT_WEATHER_SYNC, update_weather_state_cb);
+    event_unsubscribe(EVENT_NEW_STEPS, update_steps_cb);
 }
 
-uint32_t get_epoch_time(void) {
+uint32_t state_manager_get_epoch_time(void) {
     if (!watch_state.time_state.valid)
         return 0;
     time_t now;
@@ -126,8 +137,12 @@ uint32_t get_epoch_time(void) {
     return (uint32_t)now;
 }
 
-const hourly_weather_t* get_weather_today(void) {
+const hourly_weather_t* state_manager_get_weather_today(void) {
     return watch_state.weather_state.hourly_today;
+}
+
+uint32_t state_manager_get_step_count(void) {
+    return watch_state.steps;
 }
 
 void state_manager_check_validity(void) {
@@ -136,7 +151,7 @@ void state_manager_check_validity(void) {
     uint32_t current_uptime = time(NULL);
 
     if(watch_state.time_state.valid) {
-        if(get_epoch_time() - watch_state.time_state.last_sync_time > 60*60) {
+        if(state_manager_get_epoch_time() - watch_state.time_state.last_sync_time > 60*60) {
             
             if (current_uptime - state_registry.time.last_req_time >= 5*60) {
                 state_registry.time.last_req_time = current_uptime;

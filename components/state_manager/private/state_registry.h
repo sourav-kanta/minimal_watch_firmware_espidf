@@ -18,7 +18,8 @@ typedef struct {
 typedef struct {
     time_sync_t time_state;
     weather_sync_t weather_state;
-    alarm_sync_t alarms;    
+    alarm_sync_t alarms;
+    uint32_t steps;    
 } watch_state_t;
 
 #endif /* STATE_REGISTRY_H */

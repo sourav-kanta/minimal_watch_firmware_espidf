@@ -222,6 +222,7 @@ void update_retro_wf(wf_update_payload_t* update_data) {
             if(month_lbl) lv_label_set_text(month_lbl, months[month_idx]);
             if(year_lbl) lv_label_set_text_fmt(year_lbl, "%02d", time.year%100);
             if(day_label) lv_label_set_text(day_label, weekdays[time.d_week]);
+            if(steps_label) lv_label_set_text_fmt(steps_label, "STEPS : %" PRIu32, update_data->steps);
     }
 }
 

@@ -16,7 +16,7 @@
 static const char* TAG = "Common API";
 
 uint32_t get_epoch_time_now(void) {
-    return get_epoch_time();
+    return state_manager_get_epoch_time();
 }
 
 void get_date_time_from_epoch(uint32_t epoch, date_time_t* out_dt) {
@@ -51,12 +51,12 @@ uint32_t get_epoch_from_date_time(const date_time_t* dt) {
 
 void get_date_time(date_time_t* time) {
     assert(time);
-    get_date_time_from_epoch(get_epoch_time(), time);
+    get_date_time_from_epoch(state_manager_get_epoch_time(), time);
 }
 
 void get_weather_day(hourly_weather_t* day_weather) {
     assert(day_weather);
-    const hourly_weather_t *weather = get_weather_today();
+    const hourly_weather_t *weather = state_manager_get_weather_today();
     assert(weather);
     memcpy(day_weather, weather, sizeof(hourly_weather_t)*24);
 }

@@ -57,6 +57,7 @@ void watchdog_force_all_mandatory_abort(void) {
                 esp_timer_stop(workers[i].soft_close);
                 esp_timer_stop(workers[i].hard_close);
             }
+            ESP_LOGW(TAG, "Force aborting running worker %d", workers[i].worker_id);
             worker_pool_recover_stalled_worker(&workers[i], false);
         }
     }

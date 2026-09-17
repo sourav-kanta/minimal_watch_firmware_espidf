@@ -45,7 +45,7 @@ static void schedule_next_alarm_internal(void) {
 
     esp_timer_stop(alarm_timer);
 
-    uint32_t now = get_epoch_time();
+    uint32_t now = state_manager_get_epoch_time();
     uint32_t target_epoch = alarms->alarms[0].epoch;
 
     uint64_t timeout_us = (target_epoch > now + ALARM_BUFFER_SEC) 
@@ -68,7 +68,7 @@ bool alarm_manager_revalidate(void) {
         return false;
     }
 
-    uint32_t now = get_epoch_time();
+    uint32_t now = state_manager_get_epoch_time();
     discard_expired_alarms(now);
 
     if(alarms->n_alarms > 0) {
@@ -119,7 +119,7 @@ bool alarm_manager_create_alarm(alarm_t* alarm) {
         return false;
     }
 
-    uint32_t now = get_epoch_time();
+    uint32_t now = state_manager_get_epoch_time();
 
     if(alarm->epoch <= now || (alarm->epoch - now) <= ALARM_BUFFER_SEC) {
         ESP_LOGE(TAG, "Alarm epoch in past or buffer window, discarding : %u : %u", now, alarm->epoch);
@@ -291,7 +291,7 @@ void alarm_manager_init(alarm_sync_t* rtc_alarms) {
     ESP_ERROR_CHECK(esp_timer_create(&timer_arg, &alarm_timer));
     alarm_mutex = xSemaphoreCreateMutex();
     assert(alarm_mutex);
-    uint32_t now = get_epoch_time();
+    uint32_t now = state_manager_get_epoch_time();
     discard_expired_alarms(now);
 
     if(alarms->n_alarms > 0) {
