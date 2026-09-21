@@ -7,17 +7,12 @@ idf_component_register(
         ${SOURCES}
     INCLUDE_DIRS 
         "include"
-    PRIV_INCLUDE_DIRS
+    PRIV_INCLUDE_DIRS 
         "private"
     PRIV_REQUIRES
-        common_app
-        common_ui
         common
-        state_manager
-        event_manager
-        gpio_manager
-        watchface_mgr
-        lvgl_bridge
-        wakelock_manager
-        ir_blaster_driver
+        common_ui
+        common_api
+        common_app
+        lvgl
 )

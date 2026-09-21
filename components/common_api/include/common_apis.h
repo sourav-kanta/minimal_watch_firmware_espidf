@@ -31,4 +31,10 @@ bool release_wakelock(const application_t* req_app);
 
 bool trigger_dfu_over_uart(const application_t* req_app);
 
+bool send_ir_packet(const application_t* req_app, uint32_t freq, uint16_t bit0_mark, 
+                    uint16_t bit0_space, uint16_t bit1_mark, uint16_t bit1_space, uint16_t header_mark,
+                    uint16_t header_space, uint16_t inter_frame_mark, uint16_t inter_frame_space, 
+                    uint16_t gap_mark, uint16_t gap_space, uint8_t data_len,
+                    const uint8_t* data, uint8_t burst_packets);
+
 #endif /* COMMON_APIS_H */

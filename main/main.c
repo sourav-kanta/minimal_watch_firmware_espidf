@@ -20,11 +20,13 @@
 #include <ui_base.h>
 #include <sleep_lock_service.h>
 #include <uart_ota.h>
+#include <ir_driver.h>
 
 #include <settings_app.h>
 #include <weather_app.h>
 #include <alarm_app.h>
 #include <stopwatch_app.h>
+#include <remote_app.h>
 #include <brickbreaker_game.h>
 
 #include <wf_abstract_dark.h>
@@ -64,6 +66,7 @@ void app_main(void)
     app_manager_add_app(get_settings_app());
     app_manager_add_app(get_alarm_app());
     app_manager_add_app(get_stopwatch_app());
+    app_manager_add_app(get_remote_app());
     app_manager_add_app(get_brickbreaker_game());
 
     ui_manager_init();
@@ -102,6 +105,7 @@ void app_main(void)
     tick_manager_init();
     ui_on();
     tick_manager_generate_tick(TICK_WORK);
+    ir_blaster_driver_init();
 
     // Wait for 5 work ticks to confirm
     vTaskDelay(pdMS_TO_TICKS(5*1000));
@@ -110,6 +114,7 @@ void app_main(void)
 
     shutdown_reason_t reason = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 
+    ir_blaster_driver_deinit();
     ui_manager_deinit();
     ble_manager_deinit();
     runtime_manager_deinit();
