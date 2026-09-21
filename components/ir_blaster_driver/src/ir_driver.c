@@ -28,6 +28,10 @@ static void ir_task_fn(void* arg) {
             ESP_LOGE(TAG, "IR queue corrupted");
             continue;
         }
+        if(msg.frequency == UINT32_MAX && msg.payload_len == UINT8_MAX && msg.payload_data == NULL) {
+            // Received poisoned message, exit loop
+            break;
+        }
         bool success = ir_blaster_driver_unsafe_send_data(&msg);
         if(!success) {
             ESP_LOGE(TAG, "Failed to send IR packet!");
@@ -76,9 +80,17 @@ void ir_blaster_driver_init(void) {
 void ir_blaster_driver_deinit(void) {
     if(!initialized) return;
     initialized = false;
+    ir_blaster_data_t poison_msg = { 
+        .frequency = UINT32_MAX, 
+        .payload_len = UINT8_MAX, 
+        .payload_data = NULL 
+    };
     exit_sem = xSemaphoreCreateBinary();
     atomic_store(&abort_flag, true);
-    if(xSemaphoreTake(exit_sem, pdMS_TO_TICKS(1*1000)) == pdTRUE) {
+    if(xQueueSend(ir_queue, &poison_msg, pdMS_TO_TICKS(0)) != pdTRUE) {
+        ESP_LOGI(TAG, "Queue is full, should be able to abort anyway!");
+    }
+    if(xSemaphoreTake(exit_sem, pdMS_TO_TICKS(5*1000)) == pdTRUE) {
         ESP_LOGI(TAG, "Deinitialized IR driver");
     }
     else {
