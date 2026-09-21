@@ -29,7 +29,9 @@ idf_component_register(
         settings_app
         alarm_app
         stopwatch_app
+        remote_app
         brickbreaker_game
         watchface_mgr
         uart_maintainence
+        ir_blaster_driver
 )

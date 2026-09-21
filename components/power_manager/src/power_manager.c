@@ -16,6 +16,7 @@
 #include <gpio_manager.h>
 #include <esp_pm.h>
 #include <esp_err.h>
+#include <esp_heap_caps.h>
 
 static const char* TAG = "Power Manager";
 static int64_t sleep = 0;
@@ -103,7 +104,11 @@ static IRAM_ATTR int light_sleep_exit_cb(int64_t sleep_us, void* arg) {
 static void sleep_debug_cb(const event_t* event) {
     if(event && event->ev == EVENT_WORK_TICK) {
         ESP_LOGI(TAG, "Slept for %lldus last work window", sleep);
-        sleep = 0; 
+        sleep = 0;
+        ESP_LOGI(TAG, "Heap: free=%u KiB, largest=%u KiB, min=%u KiB",
+         heap_caps_get_free_size(MALLOC_CAP_8BIT) / 1024,
+         heap_caps_get_largest_free_block(MALLOC_CAP_8BIT) / 1024,
+         heap_caps_get_minimum_free_size(MALLOC_CAP_8BIT) / 1024); 
     }
 }
 

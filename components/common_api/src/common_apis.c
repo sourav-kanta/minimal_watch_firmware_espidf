@@ -12,6 +12,7 @@
 #include <lvgl_bridge.h>
 #include <wf_manager.h>
 #include <wakelock_manager.h>
+#include <ir_driver.h>
 
 static const char* TAG = "Common API";
 
@@ -229,3 +230,34 @@ bool trigger_dfu_over_uart(const application_t* req_app) {
     };
     return event_publish(&dfu_start_ev);
 }
+
+bool send_ir_packet(const application_t* req_app, uint32_t freq, uint16_t bit0_mark, 
+                    uint16_t bit0_space, uint16_t bit1_mark, uint16_t bit1_space, uint16_t header_mark,
+                    uint16_t header_space, uint16_t inter_frame_mark, uint16_t inter_frame_space,
+                    uint16_t gap_mark, uint16_t gap_space, uint8_t data_len,
+                    const uint8_t* data, uint8_t burst_packets) {
+    if(!req_app) return false;
+    if(!check_app_permission(req_app, APP_PERM_SENSOR)) {
+        ESP_LOGE(TAG, "App permission check failed!");
+        return false;
+    }
+    ir_blaster_data_t packet = {
+        .burst_packets = burst_packets,
+        .frequency  = freq,
+        .header_mark = header_mark,
+        .header_space = header_space,
+        .inter_frame_mark = inter_frame_mark,
+        .inter_frame_space = inter_frame_space,
+        .gap_mark = gap_mark,
+        .gap_space = gap_space,
+        .bit0_mark = bit0_mark,
+        .bit0_space = bit0_space,
+        .bit1_mark = bit1_mark,
+        .bit1_space = bit1_space,
+        .payload_len = data_len,
+        .payload_data = (uint8_t*)data,
+    };
+    return ir_blaster_driver_send_data(&packet);
+}
+
+

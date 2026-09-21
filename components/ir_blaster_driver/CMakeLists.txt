@@ -10,14 +10,6 @@ idf_component_register(
     PRIV_INCLUDE_DIRS
         "private"
     PRIV_REQUIRES
-        common_app
-        common_ui
+        esp_driver_rmt
         common
-        state_manager
-        event_manager
-        gpio_manager
-        watchface_mgr
-        lvgl_bridge
-        wakelock_manager
-        ir_blaster_driver
 )
