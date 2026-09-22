@@ -3,6 +3,7 @@
 #include <event_manager.h>
 #include <esp_timer.h>
 #include <tick_consts.h>
+#include <stddef.h>
 
 static esp_timer_handle_t wf_update_timer = NULL;
 static esp_timer_handle_t work_tick_timer = NULL;

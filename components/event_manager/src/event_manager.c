@@ -3,6 +3,7 @@
 #include <event_registry_types.h>
 #include <string.h>
 #include <esp_log.h>
+#include <stdbool.h>
 
 static const char *TAG = "Event Manager";
 

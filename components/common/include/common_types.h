@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <common_consts.h>
+#include <stdbool.h>
 
 typedef enum {
     UPDATE_SYSTEM_TIME,
