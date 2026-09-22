@@ -3,6 +3,7 @@
 
 #include <runtime_manager.h>
 #include <esp_log.h>
+#include <stdbool.h>
 
 bool acquire_lock_runtime(void);
 bool relinquish_lock_runtime(void);

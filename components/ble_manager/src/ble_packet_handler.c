@@ -3,6 +3,7 @@
 #include <ble_consts.h>
 #include <string.h>
 #include <ble_fifo.h>
+#include <stdbool.h>
 
 typedef enum {
     RX_WAIT_MAGIC,

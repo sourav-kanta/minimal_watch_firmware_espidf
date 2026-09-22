@@ -3,6 +3,7 @@
 
 #include <runtime_types.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 bool schedule_user_work(const runtime_work_item_t *item);
 bool schedule_system_work(const runtime_work_item_t *item);

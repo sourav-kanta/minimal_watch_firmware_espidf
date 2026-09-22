@@ -5,7 +5,7 @@
 #include <runtime_worker_pool.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
-#include <semaphore.h>
+#include <freertos/semphr.h>
 #include <esp_log.h>
 #include <esp_system.h>
 #include <esp_timer.h>
