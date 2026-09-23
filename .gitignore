@@ -1,6 +1,7 @@
 build/
 build_*_*/
 qemu_build
+build-host*/
 docs
 temp
 .cache
