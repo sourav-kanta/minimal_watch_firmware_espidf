@@ -9,6 +9,7 @@
 #include <alarm_manager_internal.h>
 #include <sys/time.h>
 #include <soc/rtc.h>
+#include <time.h>
 
 #include <state_manager.h>
 

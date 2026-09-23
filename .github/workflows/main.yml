@@ -1,0 +1,45 @@
+name: ESP-IDF Build and Test
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Build ESP-IDF Project
+        uses: espressif/esp-idf-ci-action@v1
+        with:
+          esp_idf_version: v6.1
+          target: esp32s3
+          command: idf.py build
+
+      - name: Install Host Test Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build ccache
+
+      - name: Restore Host Test Compiler Cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ccache
+          key: host-tests-ccache-${{ runner.os }}-${{ hashFiles('tests/host/CMakeLists.txt', 'tests/host/**/*.cmake', 'components/**/*.c', 'components/**/*.h') }}
+          restore-keys: |
+            host-tests-ccache-${{ runner.os }}-
+
+      - name: Configure ccache
+        run: |
+          echo "CCACHE_DIR=$HOME/.cache/ccache" >> "$GITHUB_ENV"
+          ccache --set-config=max_size=500M
+
+      - name: Run Host Regression Tests
+        run: ./scripts/regression_test.sh

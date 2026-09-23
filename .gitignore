@@ -1,6 +1,7 @@
 build/
 build_*_*/
 qemu_build
+build-host*/
 docs
 temp
 .cache
@@ -11,7 +12,6 @@ sdkconfig.qemu
 
 # Automated component manager folders (dependencies are downloaded on the fly)
 managed_components/
-dependencies.lock
 
 # Python virtual environment and cache folders
 .espressif/
