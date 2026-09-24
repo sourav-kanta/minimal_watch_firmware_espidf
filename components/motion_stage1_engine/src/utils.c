@@ -2,6 +2,7 @@
 #include <stage1_types.h>
 #include <motion_types.h>
 #include <string.h>
+#include <stdlib.h>
 
 bool ring_buffer_init(uint8_t size, uint8_t elem_size, ring_buffer_t* out) {
     assert(out);

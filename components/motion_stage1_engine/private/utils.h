@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stage1_types.h>
 #include <assert.h>
+#include <stdbool.h>
 #include <string.h>
 
 #define SAMPLE_SCALING_FACTOR           0.0002441f

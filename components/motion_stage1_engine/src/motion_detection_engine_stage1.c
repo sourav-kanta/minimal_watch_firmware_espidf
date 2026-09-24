@@ -2,6 +2,8 @@
 #include <stage1_types.h>
 #include <esp_log.h>
 #include <utils.h>
+#include <stdbool.h>
+#include <stddef.h>
 
 #define SAMPLING_FREQ_ACCEL_ONLY                    21
 #define SAMPLING_FREQ_ACCEL_GYRO                    56.05
@@ -13,7 +15,7 @@ static stage1_ctx_t stage1_ctx;
 static const stage1_tuning_params_t params = {
     .MAX_VERTICAL_ACCEL_HISTORY_SIZE = STEP_LEARNING_HISTORY_SIZE,
     .MIN_SAMPLES_BEFORE_STEP_INFERENCE = 10,
-    .GRAVITY_ALPHA = 0.125f,
+    .GRAVITY_ALPHA = 0.1f,
     .VERTICAL_ACCEL_ALPHA = 0.2f,
     .ACCEL_STABLE_THRESHOLD = 0.002f,
     .MAX_ACCEL_UNSTABLE_THRESHOLD_DENSITY = 0.005f,
@@ -23,7 +25,7 @@ static const stage1_tuning_params_t params = {
     .MAX_SAMPLES_BETWEEN_STEPS = 28,
     .STEP_MAX_PEAK_DEVIATION = 0.25f,
     .STEP_PEAK_HYSTERESIS_THRESHOLD = 0.05f,
-    .STEP_MIN_PROMINENCE_FOR_PEAK = 0.1f,
+    .STEP_MIN_PROMINENCE_FOR_PEAK = 0.07f,
     .STEP_PEAK_MEAN_GUESS = 0.2f,
     .STEP_PEAK_MEAN_SAMPLE_INTERVAL_GUESS = 16,
     .STEP_MIN_ACCEPTABLE_CONSECUTIVE_STEPS = 4,
@@ -101,7 +103,7 @@ static uint8_t stage1_detect_window_steps(size_t samples) {
 
     size_t starting_index = buffer->elements <= samples ? 0 : buffer->elements - samples;
     if(starting_index > buffer->elements) {
-        ESP_LOGE(TAG, "Unexpected sample underflow : Elems = %d : Window samples = %d", 
+        ESP_LOGE(TAG, "Unexpected sample underflow : Elems = %u : Window samples = %zu", 
                  buffer->elements, samples);
         return 0;
     }
@@ -160,7 +162,7 @@ static uint8_t stage1_detect_window_steps(size_t samples) {
                             }
                             first_window_peak = false;
                         }
-                        ESP_LOGD(TAG, "Peak interval = %d", peak_to_peak_sample_interval);
+                        ESP_LOGD(TAG, "Peak interval = %zu", peak_to_peak_sample_interval);
                         float peak_deviation = calculate_peak_deviation(peak_mean, 
                                                                         peak_sample_interval_mean,
                                                                         candidate_max,
@@ -169,7 +171,7 @@ static uint8_t stage1_detect_window_steps(size_t samples) {
                             peak_to_peak_sample_interval >= params.MIN_SAMPLES_BETWEEN_STEPS &&
                             peak_to_peak_sample_interval <= params.MAX_SAMPLES_BETWEEN_STEPS) {
                             // Valid peak
-                            ESP_LOGD(TAG, "STEP! Dev: %f | Interval: %d | Target Mean: %f",
+                            ESP_LOGD(TAG, "STEP! Dev: %f | Interval: %zu | Target Mean: %f",
                                      peak_deviation, peak_to_peak_sample_interval, peak_sample_interval_mean);
                             window_steps++;
                             peak_mean = (peak_mean * reference_peak_count + candidate_max) / 
@@ -179,7 +181,7 @@ static uint8_t stage1_detect_window_steps(size_t samples) {
                             reference_peak_count++;
                         }
                         else {
-                            ESP_LOGD(TAG, "REJECTED! Dev: %f | Interval: %d | Target Mean: %f",
+                            ESP_LOGD(TAG, "REJECTED! Dev: %f | Interval: %zu | Target Mean: %f",
                                      peak_deviation, peak_to_peak_sample_interval, 
                                      peak_sample_interval_mean);
                         }

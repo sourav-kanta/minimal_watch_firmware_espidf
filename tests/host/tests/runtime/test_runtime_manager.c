@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
 #include <freertos/task.h>
 
 #include <event_manager.h>
@@ -71,6 +72,23 @@ static atomic_int hook_a_count;
 static atomic_int hook_b_count;
 static atomic_int hook_c_count;
 
+static SemaphoreHandle_t test_leak_sem = NULL;
+
+static void leaking_orphaned_worker_handler(void *arg, runtime_abort_flag_t *abort_flag) {
+    (void)arg;
+    (void)abort_flag;
+
+    atomic_store(&work_started, true);
+    
+    xSemaphoreTake(test_leak_sem, portMAX_DELAY);
+
+    while(1) {
+        vTaskDelay(pdMS_TO_TICKS(100));
+    }
+
+    xSemaphoreGive(test_leak_sem);
+    atomic_store(&work_finished, true);
+}
 
 static void test_grace_user_work_handler(void *arg,
                                          runtime_abort_flag_t *abort_flag) {
@@ -138,6 +156,34 @@ static void test_curfew_hook_schedules_work(void) {
     atomic_store(&curfew_hook_finished, true);
 }
 
+static void queue_flooding_curfew_hook(void) {
+    runtime_work_item_t user_work = {
+        .handler = test_grace_user_work_handler,
+        .type = WORK_TYPE_USER,
+        .priority = RUNTIME_USER_PRIORITY,
+    };
+
+    int success_count = 0;
+    int failure_count = 0;
+
+    // Attempt to flood the pending_user_work queue (which only holds MAX/2)
+    for(int i = 0; i < MAX_USER_WORK_PER_WINDOW; i++) {
+        if(schedule_user_work(&user_work)) {
+            success_count++;
+        } else {
+            failure_count++;
+        }
+    }
+
+    // Handle odd numbers safely (e.g., if MAX_USER_WORK_PER_WINDOW is 15, capacity is 7)
+    int expected_success = MAX_USER_WORK_PER_WINDOW / 2;
+    int expected_failure = MAX_USER_WORK_PER_WINDOW - expected_success;
+
+    assert(success_count == expected_success);
+    assert(failure_count == expected_failure);
+
+    atomic_store(&curfew_hook_finished, true);
+}
 
 static void test_work_handler(void *arg,
                               runtime_abort_flag_t *abort_flag) {
@@ -1431,6 +1477,81 @@ static void test_worker_priority_follows_work_type(void) {
     runtime_manager_deinit();
 }
 
+/*
+ * Test: Deinit timeout and abrupt task deletion lock leak.
+ *
+ * Exposes the danger of vTaskDelete during runtime_manager_deinit.
+ * When deinit times out waiting for workers, it deletes the worker tasks abruptly,
+ * leaving any application-level locks held by the worker permanently locked.
+ */
+static void test_deinit_timeout_task_deletion_leak(void) {
+    printf("test_deinit_timeout_task_deletion_leak...\n");
+
+    test_leak_sem = xSemaphoreCreateBinary();
+    xSemaphoreGive(test_leak_sem);
+    atomic_store(&work_started, false);
+    atomic_store(&work_finished, false);
+
+    runtime_manager_init();
+    runtime_manager_set_active_state(true);
+
+    wait_for_runtime_state(RUNTIME_STATE_UI_ACTIVE, TICK_TIMEOUT_MS, "UI_ACTIVE");
+
+    runtime_work_item_t work = {
+        .handler = leaking_orphaned_worker_handler,
+        .type = WORK_TYPE_USER,
+        .priority = RUNTIME_USER_PRIORITY,
+    };
+
+    assert(schedule_user_work(&work));
+
+    wait_for_atomic_bool(&work_started, WORK_START_TIMEOUT_MS, "leaking work to start");
+
+    vTaskDelay(pdMS_TO_TICKS(50));
+
+    runtime_manager_deinit();
+
+    assert(!atomic_load(&work_finished));
+
+    // Try to take the application sem. It should fail because the worker was killed
+    // while holding it, proving the resource leak edge case.
+    assert(xSemaphoreTake(test_leak_sem, pdMS_TO_TICKS(100)) == pdFALSE);
+
+    vSemaphoreDelete(test_leak_sem);
+    printf("  PASS (Resource leak proven on timeout)\n");
+}
+
+/*
+ * Test: Grace period queue capacity and overflow safety.
+ *
+ * Verifies that when the runtime is in GRACE_PERIOD, attempting to schedule
+ * more items than the pending_user_work queue can handle (MAX/2) safely
+ * rejects the overflow without crashing or corrupting the main queues.
+ */
+static void test_grace_period_queue_overflow(void) {
+    printf("test_grace_period_queue_overflow...\n");
+    atomic_store(&curfew_hook_finished, false);
+
+    runtime_manager_init();
+    assert(runtime_manager_register_hook(queue_flooding_curfew_hook));
+
+    runtime_manager_set_active_state(true);
+
+    wait_for_runtime_state(RUNTIME_STATE_GRACE_PERIOD, WINDOW_UI_MAX_MS + 300, "GRACE_PERIOD");
+    wait_for_atomic_bool(&curfew_hook_finished, WINDOW_GRACE_PERIOD_MS + 300, "hook flooding queue");
+
+    wait_for_runtime_state(RUNTIME_STATE_SLEEP, WINDOW_GRACE_PERIOD_MS + 300, "SLEEP");
+
+    // Reactivate to trigger drain_pending_queue
+    runtime_manager_set_active_state(true);
+    wait_for_runtime_state(RUNTIME_STATE_UI_ACTIVE, TICK_TIMEOUT_MS, "UI_ACTIVE for drain");
+
+    // The workers will now drain and execute exactly MAX/2 items.
+    vTaskDelay(pdMS_TO_TICKS(100));
+    runtime_manager_deinit();
+
+    printf("  PASS\n");
+}
 
 static void host_test_task(void *arg) {
     (void)arg;
@@ -1458,6 +1579,8 @@ static void host_test_task(void *arg) {
     test_deinit_drains_existing_work();
     test_repeated_active_state_requests();
     test_worker_priority_follows_work_type();
+    test_grace_period_queue_overflow();
+    test_deinit_timeout_task_deletion_leak();
 
     tick_manager_deinit();
 
