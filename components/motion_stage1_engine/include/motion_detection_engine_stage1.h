@@ -3,6 +3,7 @@
 
 #include <motion_types.h>
 #include <stdint.h>
+#include <stddef.h>
 
 void stage1_process_motion_data(uint8_t *data, size_t samples, imu_stage1_result_t* out_res);
 void stage1_init(void);

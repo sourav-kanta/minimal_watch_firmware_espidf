@@ -9,6 +9,7 @@ temp
 # Local hardware & project configurations
 sdkconfig.old
 sdkconfig.qemu 
+dependencies.lock
 
 # Automated component manager folders (dependencies are downloaded on the fly)
 managed_components/

@@ -2,6 +2,7 @@
 #define MOTION_TYPES_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 typedef enum {
     MOTION_MODE_ACCEL_ONLY,
