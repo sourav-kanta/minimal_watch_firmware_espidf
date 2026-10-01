@@ -278,6 +278,68 @@ static void test_callback_can_restart_timer(void) {
     callback_restart_timer = NULL;
 }
 
+/*
+ * Test: ESP timer periodic restart at an absolute time.
+ *
+ * Verifies restarting a periodic timer with esp_timer_restart_at() replaces
+ * its current schedule, fires at the requested absolute time, and continues
+ * periodically using the supplied period.
+ */
+static void test_restart_at_periodic(void) {
+    fprintf(stderr, "[TEST] esp_timer restart_at periodic\n");
+
+    reset_callback_state();
+
+    esp_timer_create_args_t args = {
+        .callback = test_callback,
+        .arg = NULL,
+        .name = "restart-at",
+    };
+    esp_timer_handle_t timer = NULL;
+
+    assert(esp_timer_create(&args, &timer) == 0);
+    assert(esp_timer_start_periodic(timer, 50000) == 0);
+
+    sleep_us(10000);
+
+    /*
+     * Move the next expiry to approximately 30 ms from now while keeping
+     * the normal 20 ms periodic interval afterward.
+     */
+    int64_t restart_time = esp_timer_get_time();
+    uint64_t first_alarm_us = (uint64_t)(restart_time + 30000);
+
+    assert(esp_timer_restart_at(timer, 20000, first_alarm_us) == 0);
+    assert(esp_timer_is_active(timer));
+
+    /*
+     * The original 50 ms schedule must have been replaced.
+     * Wait long enough for the new first expiry, but not long enough for
+     * the second periodic expiry.
+     */
+    sleep_us(40000);
+
+    assert(callback_count == 1);
+    assert(esp_timer_is_active(timer));
+
+    /*
+     * The restarted periodic timer should fire again using the new
+     * 20 ms period.
+     */
+    sleep_us(25000);
+
+    assert(callback_count == 2);
+    assert(esp_timer_is_active(timer));
+
+    assert(esp_timer_stop(timer) == 0);
+    assert(!esp_timer_is_active(timer));
+
+    sleep_us(30000);
+
+    assert(callback_count == 2);
+    assert(esp_timer_delete(timer) == 0);
+}
+
 static void host_test_task(void *arg) {
     (void)arg;
 

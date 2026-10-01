@@ -9,7 +9,8 @@ cd "$ROOT_DIR"
 echo "==> Configuring host regression build"
 cmake -S tests/host -B "$BUILD_DIR" \
     -DHOST_COVERAGE=OFF \
-    -DCMAKE_C_COMPILER_LAUNCHER=ccache
+    -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+    -DCMAKE_BUILD_TYPE=Debug
 
 echo
 echo "==> Building host tests"

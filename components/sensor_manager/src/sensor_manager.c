@@ -81,7 +81,7 @@ static void process_battery_data(void *arg, runtime_abort_flag_t* flag) {
     // Fire event to update system battery percentage
 }
 
-static void schedule_sensor_work(const event_t* event) {
+static void schedule_imu_work(const event_t* event) {
     runtime_work_item_t imu_work = {
         .handler = process_imu_data,
         .type = WORK_TYPE_SYSTEM,
@@ -90,26 +90,26 @@ static void schedule_sensor_work(const event_t* event) {
     if(!success) {
         ESP_LOGE(TAG, "Failed scheduling IMU work. Skipping");
     }
-    
-    /* ------------------- Move these two to SENSOR_TICK (1min interval) -----------*/
+}
 
-    //runtime_work_item_t bmp_work = {
-    //    .handler = process_bmp_data,
-    //    .type = WORK_TYPE_SYSTEM,
-    //};
-    //success = schedule_system_work(&bmp_work);
-    //if(!success) {
-    //    ESP_LOGE(TAG, "Failed scheduling BMP work. Skipping");
-    //}
-    //
-    //runtime_work_item_t batt_work = {
-    //    .handler = process_battery_data,
-    //    .type = WORK_TYPE_SYSTEM,
-    //};
-    //success = schedule_system_work(&batt_work);
-    //if(!success) {
-    //    ESP_LOGE(TAG, "Failed scheduling Battery work. Skipping");
-    //}
+static void schedule_sensor_work(const event_t* event) {
+    runtime_work_item_t bmp_work = {
+        .handler = process_bmp_data,
+        .type = WORK_TYPE_SYSTEM,
+    };
+    bool success = schedule_system_work(&bmp_work);
+    if(!success) {
+        ESP_LOGE(TAG, "Failed scheduling BMP work. Skipping");
+    }
+    
+    runtime_work_item_t batt_work = {
+        .handler = process_battery_data,
+        .type = WORK_TYPE_SYSTEM,
+    };
+    success = schedule_system_work(&batt_work);
+    if(!success) {
+        ESP_LOGE(TAG, "Failed scheduling Battery work. Skipping");
+    }
 }
 
 void sensor_manager_arm_wakeup_interrupt(void) {
@@ -137,11 +137,13 @@ void sensor_manager_init(void) {
     if(imu_err != IMU_OK) {
         ESP_LOGE(TAG, "Imu init failed");
     }
-    event_subscribe(EVENT_WORK_TICK, schedule_sensor_work);
+    event_subscribe(EVENT_WORK_TICK, schedule_imu_work);
+    event_subscribe(EVENT_SENSOR_TICK, schedule_sensor_work);
 }
 
 void sensor_manager_deinit(void) { 
-    event_unsubscribe(EVENT_WORK_TICK, schedule_sensor_work);
+    event_unsubscribe(EVENT_WORK_TICK, schedule_imu_work);
+    event_unsubscribe(EVENT_SENSOR_TICK, schedule_sensor_work);
     imu_err_t err = imu_enter_low_power_mode();
     if(err != IMU_OK) {
         ESP_LOGE(TAG, "Failed to switch to lowpower mode");

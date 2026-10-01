@@ -50,4 +50,8 @@ int esp_timer_stop(esp_timer_handle_t timer);
 
 bool esp_timer_is_active(esp_timer_handle_t timer);
 
+int esp_timer_restart_at(esp_timer_handle_t timer,
+                         uint64_t period_us,
+                         uint64_t expiry_us);
+
 #endif
