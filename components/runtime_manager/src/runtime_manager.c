@@ -91,7 +91,7 @@ static void set_runtime_state(runtime_state_t target_state) {
             // Watchdog abort and suspend worker pools
             watchdog_force_all_mandatory_abort();
             worker_pool_suspend_all();
-            ESP_LOGD(TAG, "Worker window stopped, sleeping");
+            ESP_LOGI(TAG, "Worker window stopped, sleeping");
             if(shutdown_initialized && shutdown_sem) {
                 xSemaphoreGive(shutdown_sem);
             }

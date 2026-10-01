@@ -31,6 +31,7 @@
 
 #define SCHEDULING_WORK_DURATION_MS         2
 
+static const unsigned int WORK_TICK_MS = tick_intervals_ms[TICK_WORK];
 
 static atomic_bool work_started;
 static atomic_bool work_finished;

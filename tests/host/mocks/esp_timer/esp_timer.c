@@ -391,3 +391,26 @@ bool esp_timer_is_active(esp_timer_handle_t timer) {
 
     return active;
 }
+
+int esp_timer_restart_at(esp_timer_handle_t timer,
+                         uint64_t period_us,
+                         uint64_t expiry_us) {
+    if(timer == NULL || period_us == 0) {
+        return -1;
+    }
+
+    ensure_timer_service_started();
+
+    pthread_mutex_lock(&timer_lock);
+
+    timer->periodic = true;
+    timer->period_us = period_us;
+    timer->expiry_us = (int64_t)expiry_us;
+    timer->active = true;
+
+    pthread_mutex_unlock(&timer_lock);
+
+    wake_timer_service();
+
+    return 0;
+}

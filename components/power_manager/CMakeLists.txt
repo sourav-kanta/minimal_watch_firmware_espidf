@@ -12,8 +12,10 @@ idf_component_register(
     PRIV_REQUIRES
         common
         event_manager
-        esp_pm
         ui_manager
         runtime_manager
         gpio_manager
+        tick_manager
+        esp_timer
+        esp_pm
 )
