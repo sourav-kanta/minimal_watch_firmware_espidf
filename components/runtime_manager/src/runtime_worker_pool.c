@@ -30,9 +30,9 @@ static void pool_worker_entry(void *pvParameters) {
         ESP_LOGD(TAG, "Inside  worker task %d", worker_metadata->worker_id);
         BaseType_t result = xQueueReceive(queue, &item, portMAX_DELAY);
         if(result == pdPASS) {
+            atomic_fetch_add(&active_workers, 1);
             ESP_LOGD(TAG, "Stack remaining = %u words", uxTaskGetStackHighWaterMark(NULL));
             runtime_manager_reset_settlement_timer();
-            atomic_fetch_add(&active_workers, 1);
             bool is_user_task = item.type == WORK_TYPE_USER;
             BaseType_t priority = is_user_task? RUNTIME_USER_PRIORITY : RUNTIME_SYSTEM_PRIORITY;
             vTaskPrioritySet(NULL, priority);

@@ -66,8 +66,6 @@ static void set_runtime_state(runtime_state_t target_state) {
                 target_state == RUNTIME_STATE_BACKGROUND_ACTIVE) {
             if(runtime_state == RUNTIME_STATE_SLEEP) {
                 runtime_state = target_state;
-                ESP_LOGD(TAG, "Worker window start %s", 
-                         runtime_state == RUNTIME_STATE_UI_ACTIVE ? "UI active" : "Background");
                 window_ctx.window_start_time = esp_timer_get_time();
                 int64_t window_duration = runtime_state == RUNTIME_STATE_UI_ACTIVE ? 
                                           WINDOW_UI_MAX_MS*1000 : WINDOW_BACKGROUND_MAX_MS*1000;
@@ -76,6 +74,8 @@ static void set_runtime_state(runtime_state_t target_state) {
                 // Resume worker pools
                 worker_pool_resume_all();
                 runtime_manager_evaluate_early_curfew();
+                ESP_LOGI(TAG, "Worker window start %s",
+                         runtime_state == RUNTIME_STATE_UI_ACTIVE ? "UI active" : "Background");
             }
             else {
                 ESP_LOGE(TAG, "Invalid runtime state transition to active from non sleep state, skipping");
