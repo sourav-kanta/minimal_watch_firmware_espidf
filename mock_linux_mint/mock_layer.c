@@ -81,7 +81,7 @@ void mock_send_weather(void) {
 
     for (int i = 0; i < 24; i++) {
 
-        int16_t temp = 285;
+        int16_t temp = 285 + i*10;
 
         *p++ = (temp >> 8) & 0xFF;
         *p++ = temp & 0xFF;
@@ -114,7 +114,7 @@ void mock_send_dated_weather_response(void) {
 
     for (int i = 0; i < 24; i++) {
 
-        int16_t temp = 285;
+        int16_t temp = 195 + i*10;
 
         *p++ = (temp >> 8) & 0xFF;
         *p++ = temp & 0xFF;
