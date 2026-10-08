@@ -2,6 +2,8 @@ add_executable(motion_detection
     test_motion_detector.c
 
     ../../../../components/motion_stage1_engine/src/motion_detection_engine_stage1.c
+    ../../../../components/motion_stage1_engine/src/no_motion_algo.c
+    ../../../../components/motion_stage1_engine/src/step_detection_algo.c
     ../../../../components/motion_stage1_engine/src/utils.c
 )
 
