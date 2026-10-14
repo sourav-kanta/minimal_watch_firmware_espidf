@@ -7,6 +7,7 @@
 #include <utils.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <assert.h>
 
 #define SAMPLING_FREQ_ACCEL_ONLY                    21
 #define SAMPLING_FREQ_ACCEL_GYRO                    56.05
@@ -17,24 +18,26 @@ static const char* TAG = "Stage1 engine";
 static stage1_ctx_t stage1_ctx;
 static const stage1_tuning_params_t params = {
     .MAX_VERTICAL_ACCEL_HISTORY_SIZE = STEP_LEARNING_HISTORY_SIZE,
-    .MIN_SAMPLES_BEFORE_STEP_INFERENCE = 10,
+    .MIN_SAMPLES_BEFORE_STEP_INFERENCE = SAMPLING_FREQ_ACCEL_ONLY*3,
     .GRAVITY_ALPHA = 0.1f,
     .VERTICAL_ACCEL_ALPHA = 0.2f,
     .ACCEL_STABLE_THRESHOLD = 0.002f,
     .MAX_ACCEL_UNSTABLE_THRESHOLD_DENSITY = 0.005f,
     .MAX_JERK_THRESHOLD_PER_SAMPLE = 0.00005f,
     .MIN_WINDOW_NO_MOTION_THRESHOLD = 15,
-    .MIN_SAMPLES_BETWEEN_STEPS = 12,
+    .MIN_SAMPLES_BETWEEN_STEPS = 11,
     .MAX_SAMPLES_BETWEEN_STEPS = 28,
-    .STEP_MAX_PEAK_DEVIATION = 0.25f,
-    .STEP_PEAK_HYSTERESIS_THRESHOLD = 0.05f,
-    .STEP_MIN_PROMINENCE_FOR_PEAK = 0.07f,
-    .STEP_PEAK_MEAN_GUESS = 0.2f,
-    .STEP_PEAK_MEAN_SAMPLE_INTERVAL_GUESS = 16,
+    .MAX_STEP_PERIODICITY_DEVIATION = 0.3f,
+    .STEP_MIN_PROMINENCE_FOR_PEAK = 0.1f,
     .STEP_MIN_ACCEPTABLE_CONSECUTIVE_STEPS = 4,
+    .STEP_MIN_VARIANCE_ACTIVITY_FOR_STEP = 0.005f,
     .STEP_MAX_SAMPLES_BEFORE_STATE_CHANGE = 42,
 };
 
+static_assert(STAGE1_CANDIDATE_BUFFER_SIZE >= STEP_LEARNING_HISTORY_SIZE,
+              "Insufficient candidate buffer");
+static_assert(STAGE1_CORELATION_BUFFER_SIZE >= STEP_LEARNING_HISTORY_SIZE,
+              "Insufficient corelation buffer");
 
 void stage1_process_motion_data(uint8_t* data, size_t samples, imu_stage1_result_t* out_res) {
     assert(out_res);
@@ -81,7 +84,7 @@ void stage1_process_motion_data(uint8_t* data, size_t samples, imu_stage1_result
             vertical_accel_mod = vec_a_component_on_g(&curr_sample, &stage1_ctx.gravity_prev) - 1.0f;
             if(stage1_ctx.vertical_accel_mod_history.elements != 0) {
                 // Smooth out the vertical_accel
-                float* vertical_accel_prev = (float*) ring_buffer_pointer_at_index(
+                float* vertical_accel_prev = (float*) ring_buffer_get_element_at_index(
                                               &stage1_ctx.vertical_accel_mod_history,
                                               stage1_ctx.vertical_accel_mod_history.elements - 1);
                 assert(vertical_accel_prev);
