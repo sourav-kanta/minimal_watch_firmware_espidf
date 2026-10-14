@@ -358,42 +358,48 @@ int main(void) {
     /* 1. Simple clean walking. */
     rng_state = 0x13579BDFu;
     header_pos = write_scenario_header(file, "simple_sine");
-    sample_count = generate_walking(file, WALKING_STEP_COUNT, WALKING_STEP_SAMPLES, 0, 0, 0);
+    sample_count = generate_stillness(file, STILLNESS_SAMPLES);
+    sample_count += generate_walking(file, WALKING_STEP_COUNT, WALKING_STEP_SAMPLES, 0, 0, 0);
     finalize_scenario_header(file, header_pos, "simple_sine", sample_count);
     fprintf(file, "\n");
 
     /* 2. Walking with Gaussian noise. */
     rng_state = 0x13579BDFu;
     header_pos = write_scenario_header(file, "sine_noise");
-    sample_count = generate_walking(file, WALKING_STEP_COUNT, WALKING_STEP_SAMPLES, 0, 0, 1);
+    sample_count = generate_stillness(file, STILLNESS_SAMPLES);
+    sample_count += generate_walking(file, WALKING_STEP_COUNT, WALKING_STEP_SAMPLES, 0, 0, 1);
     finalize_scenario_header(file, header_pos, "sine_noise", sample_count);
     fprintf(file, "\n");
 
     /* 3. Varying frequency. */
     rng_state = 0x13579BDFu;
     header_pos = write_scenario_header(file, "varying_frequency");
-    sample_count = generate_walking(file, WALKING_STEP_COUNT, WALKING_STEP_SAMPLES, 1, 0, 0);
+    sample_count = generate_stillness(file, STILLNESS_SAMPLES);
+    sample_count += generate_walking(file, WALKING_STEP_COUNT, WALKING_STEP_SAMPLES, 1, 0, 0);
     finalize_scenario_header(file, header_pos, "varying_frequency", sample_count);
     fprintf(file, "\n");
 
     /* 4. Varying frequency + noise. */
     rng_state = 0x13579BDFu;
     header_pos = write_scenario_header(file, "varying_frequency_noise");
-    sample_count = generate_walking(file, WALKING_STEP_COUNT, WALKING_STEP_SAMPLES, 1, 0, 1);
+    sample_count = generate_stillness(file, STILLNESS_SAMPLES);
+    sample_count += generate_walking(file, WALKING_STEP_COUNT, WALKING_STEP_SAMPLES, 1, 0, 1);
     finalize_scenario_header(file, header_pos, "varying_frequency_noise", sample_count);
     fprintf(file, "\n");
 
     /* 5. Varying frequency + amplitude. */
     rng_state = 0x13579BDFu;
     header_pos = write_scenario_header(file, "varying_frequency_amplitude");
-    sample_count = generate_walking(file, WALKING_STEP_COUNT, WALKING_STEP_SAMPLES, 1, 1, 0);
+    sample_count = generate_stillness(file, STILLNESS_SAMPLES);
+    sample_count += generate_walking(file, WALKING_STEP_COUNT, WALKING_STEP_SAMPLES, 1, 1, 0);
     finalize_scenario_header(file, header_pos, "varying_frequency_amplitude", sample_count);
     fprintf(file, "\n");
 
     /* 6. Varying frequency + amplitude + noise. */
     rng_state = 0x13579BDFu;
     header_pos = write_scenario_header(file, "varying_frequency_amplitude_noise");
-    sample_count = generate_walking(file, WALKING_STEP_COUNT, WALKING_STEP_SAMPLES, 1, 1, 1);
+    sample_count = generate_stillness(file, STILLNESS_SAMPLES);
+    sample_count += generate_walking(file, WALKING_STEP_COUNT, WALKING_STEP_SAMPLES, 1, 1, 1);
     finalize_scenario_header(file, header_pos, "varying_frequency_amplitude_noise", sample_count);
     fprintf(file, "\n");
 
@@ -410,21 +416,24 @@ int main(void) {
     /* 8. Walking -> gap -> walking. */
     rng_state = 0x13579BDFu;
     header_pos = write_scenario_header(file, "steps_gap_steps");
-    sample_count = generate_steps_gap_steps(file);
+    sample_count = generate_stillness(file, STILLNESS_SAMPLES);
+    sample_count += generate_steps_gap_steps(file);
     finalize_scenario_header(file, header_pos, "steps_gap_steps", sample_count);
     fprintf(file, "\n");
 
     /* 9. Walking with one deliberately weak step. */
     rng_state = 0x13579BDFu;
     header_pos = write_scenario_header(file, "single_missed_peak");
-    sample_count = generate_single_weak_peak(file);
+    sample_count = generate_stillness(file, STILLNESS_SAMPLES);
+    sample_count += generate_single_weak_peak(file);
     finalize_scenario_header(file, header_pos, "single_missed_peak", sample_count);
     fprintf(file, "\n");
 
     /* 10. Discontinuous walking. */
     rng_state = 0x13579BDFu;
     header_pos = write_scenario_header(file, "discontinuous_steps");
-    sample_count = generate_discontinuous_walking(file);
+    sample_count = generate_stillness(file, STILLNESS_SAMPLES);
+    sample_count += generate_discontinuous_walking(file);
     finalize_scenario_header(file, header_pos, "discontinuous_steps", sample_count);
 
     fclose(file);

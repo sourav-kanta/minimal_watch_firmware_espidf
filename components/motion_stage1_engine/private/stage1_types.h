@@ -3,7 +3,9 @@
 
 #include <motion_types.h>
 
-#define STAGE1_SAMPLE_RATE_HZ                 21.0f
+#define STAGE1_SAMPLE_RATE_HZ                   21.0f
+#define STAGE1_CANDIDATE_BUFFER_SIZE            126
+#define STAGE1_CORELATION_BUFFER_SIZE           126
 
 typedef struct {
     void* data;
@@ -13,12 +15,6 @@ typedef struct {
     uint8_t read_idx;
     uint8_t write_idx;
 } ring_buffer_t;
-
-typedef enum {
-    STEP_STATE_FIND_PEAK,
-    STEP_STATE_FIND_VALLEY,
-    STEP_STATE_INVALID
-} step_state_t;
 
 typedef struct {
     motion_state_t state;
@@ -36,16 +32,14 @@ typedef struct {
     uint8_t MIN_SAMPLES_BEFORE_STEP_INFERENCE;
     uint8_t MIN_SAMPLES_BETWEEN_STEPS;
     uint8_t MAX_SAMPLES_BETWEEN_STEPS;
-    uint8_t STEP_PEAK_MEAN_SAMPLE_INTERVAL_GUESS;
-    float STEP_PEAK_MEAN_GUESS;
+    float STEP_MIN_VARIANCE_ACTIVITY_FOR_STEP;
     float STEP_MIN_PROMINENCE_FOR_PEAK;
-    float STEP_MAX_PEAK_DEVIATION;
-    float STEP_PEAK_HYSTERESIS_THRESHOLD;
     float VERTICAL_ACCEL_ALPHA;
     float GRAVITY_ALPHA;
     float ACCEL_STABLE_THRESHOLD;
     float MAX_ACCEL_UNSTABLE_THRESHOLD_DENSITY;
     float MAX_JERK_THRESHOLD_PER_SAMPLE;
+    float MAX_STEP_PERIODICITY_DEVIATION;
     int MIN_WINDOW_NO_MOTION_THRESHOLD;
     int STEP_MIN_ACCEPTABLE_CONSECUTIVE_STEPS;
     int STEP_MAX_SAMPLES_BEFORE_STATE_CHANGE;

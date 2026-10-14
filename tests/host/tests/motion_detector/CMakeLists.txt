@@ -18,6 +18,7 @@ target_link_libraries(motion_detection
         freertos_kernel
         freertos_config
         host_platform
+        m
 )
 
 target_compile_definitions(motion_detection PRIVATE

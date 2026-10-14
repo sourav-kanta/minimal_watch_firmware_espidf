@@ -15,9 +15,9 @@
 #error "INPUT_FILE_PATH must be defined by CMake"
 #endif
 
-#define SAMPLES_PER_CHUNK       21
-#define BYTES_PER_SAMPLE        6
-
+#define SAMPLES_PER_CHUNK           21
+#define BYTES_PER_SAMPLE            6
+#define STEP_MISMATCH_TOLERENCE     2
 typedef struct {
     int16_t x;
     int16_t y;
@@ -152,6 +152,14 @@ static imu_stage1_result_t run_scenario(
     return final_result;
 }
 
+static void check_step_result(uint8_t expected_steps, uint8_t result) {
+    bool pass = result > expected_steps ? false :
+                expected_steps - result <= STEP_MISMATCH_TOLERENCE;
+    printf("Test scenario results : Expected : %u, Result : %u\n",
+           expected_steps, result);
+    assert(pass);
+}
+
 /* -------------------------------------------------------------------------- */
 /* Scenario loading                                                           */
 /* -------------------------------------------------------------------------- */
@@ -226,6 +234,7 @@ static void test_simple_sine(void)
            result.steps,
            result.no_motion ? "true" : "false");
 
+    check_step_result(24U, result.steps);
     printf("  PASS\n");
 }
 
@@ -247,6 +256,7 @@ static void test_sine_noise(void)
            result.steps,
            result.no_motion ? "true" : "false");
 
+    check_step_result(24U, result.steps);
     printf("  PASS\n");
 }
 
@@ -268,6 +278,7 @@ static void test_varying_frequency(void)
            result.steps,
            result.no_motion ? "true" : "false");
 
+    check_step_result(24U, result.steps);
     printf("  PASS\n");
 }
 
@@ -289,6 +300,7 @@ static void test_varying_frequency_noise(void)
            result.steps,
            result.no_motion ? "true" : "false");
 
+    check_step_result(24U, result.steps);
     printf("  PASS\n");
 }
 
@@ -310,6 +322,7 @@ static void test_varying_frequency_amplitude(void)
            result.steps,
            result.no_motion ? "true" : "false");
 
+    check_step_result(24U, result.steps);
     printf("  PASS\n");
 }
 
@@ -333,6 +346,7 @@ static void test_varying_frequency_amplitude_noise(void)
            result.steps,
            result.no_motion ? "true" : "false");
 
+    check_step_result(24U, result.steps);
     printf("  PASS\n");
 }
 
@@ -356,6 +370,7 @@ static void test_stillness_steps_stillness(void)
            result.steps,
            result.no_motion ? "true" : "false");
 
+    check_step_result(24U, result.steps);
     printf("  PASS\n");
 }
 
@@ -379,6 +394,7 @@ static void test_steps_gap_steps(void)
            result.steps,
            result.no_motion ? "true" : "false");
 
+    check_step_result(24U, result.steps);
     printf("  PASS\n");
 }
 
@@ -402,6 +418,7 @@ static void test_single_missed_peak(void)
            result.steps,
            result.no_motion ? "true" : "false");
 
+    check_step_result(24U, result.steps);
     printf("  PASS\n");
 }
 
@@ -425,6 +442,7 @@ static void test_discontinuous_steps(void)
            result.steps,
            result.no_motion ? "true" : "false");
 
+    check_step_result(16U, result.steps);
     printf("  PASS\n");
 }
 
