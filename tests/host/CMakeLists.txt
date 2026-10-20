@@ -72,6 +72,15 @@ target_include_directories(host_esp_timer
         ${CMAKE_CURRENT_SOURCE_DIR}/mocks
 )
 
+add_library(host_esp_crc STATIC
+    mocks/esp_rom_crc/esp_rom_crc.c
+)
+
+target_include_directories(host_esp_crc
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/mocks
+)
+
 target_link_libraries(host_esp_timer
     PUBLIC
         freertos_kernel
@@ -102,6 +111,7 @@ target_link_libraries(common_host
 add_library(ble_host STATIC
     ../../components/ble_manager/src/ble_fifo.c
     ../../components/ble_manager/src/ble_packet_handler.c
+    ../../components/ble_manager/src/ble_multichunk_handler.c
 )
 
 target_include_directories(ble_host
