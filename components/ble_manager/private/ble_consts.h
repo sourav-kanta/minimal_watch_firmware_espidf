@@ -4,9 +4,11 @@
 #include <stdint.h>
 
 #define BLE_MAX_PAYLOAD_SIZE            250
+#define BLE_MAX_MULTICHUNK_SIZE         2048
 #define BLE_FIFO_SIZE                   20
 
 #define BLE_MAGIC                       0xA5
+#define BLE_MULTICHUNK_MAGIC            0xB9
 #define BLE_HDR_SIZE                    3
 #define BLE_MIN_CONN_INTERVAL           0x0320
 #define BLE_MAX_CONN_INTERVAL           0x0348

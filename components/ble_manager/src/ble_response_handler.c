@@ -3,6 +3,8 @@
 #include <event_manager.h>
 #include <string.h>
 #include <ble_response_handler.h>
+#include <ble_types.h>
+#include <ble_multichunk_handler.h>
 
 static const char* TAG = "Response Handler";
 
@@ -173,6 +175,16 @@ static bool parse_notification_payload(const uint8_t *payload, uint16_t len, not
     return true;
 }
 
+static void handle_ble_multichunk_response(const ble_multichunk_msg_t* msg) {
+    if(!msg) return;
+    switch(msg->opcode) {
+        // Todo add opcode handling
+        default :
+            free(msg->data);
+            break;
+    }
+}
+
 bool handle_ble_response(const ble_msg_t* msg) {
     if(!msg) return false;
     bool success = true;
@@ -264,6 +276,9 @@ bool handle_ble_response(const ble_msg_t* msg) {
                 success = false;
                 ESP_LOGE(TAG, "Invalid notification message length");
             }
+            break;
+        case BLE_OP_MULTICHUNK_SEND:
+            parse_new_chunk(msg, handle_ble_multichunk_response);
             break;
         default :
             ESP_LOGW(TAG, "Unhandled BLE opcode %u", msg->hdr.opcode);
