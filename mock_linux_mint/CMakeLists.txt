@@ -1,13 +1,19 @@
 idf_component_register(
-    SRCS "mock_layer.c"
+    SRCS
+        "mock_encoder_input.c"
+        "mock_hardware.c"
+        "mock_ble.c"
     INCLUDE_DIRS "."
-    REQUIRES 
-    esp_lcd 
+    REQUIRES
+    esp_lcd
     encoder_driver
-    ble_manager 
-    runtime_manager 
+    ble_manager
+    runtime_manager
     esp_driver_ledc
     esp_adc
+    esp_driver_uart
+    event_manager
+    common
 )
 
 target_include_directories(
@@ -16,12 +22,12 @@ target_include_directories(
     ${CMAKE_SOURCE_DIR}/components/ble_manager/private
 )
 
-target_link_libraries(${COMPONENT_LIB} INTERFACE 
+target_link_libraries(${COMPONENT_LIB} INTERFACE
     "-Wl,--wrap=ble_manager_init"
     "-Wl,--wrap=ble_manager_deinit"
     "-Wl,--wrap=init_display"
     "-Wl,--wrap=deinit_display"
-    "-Wl,--wrap=display_draw_bitmap"  
+    "-Wl,--wrap=display_draw_bitmap"
     "-Wl,--wrap=display_on"
     "-Wl,--wrap=display_off"
     "-Wl,--wrap=display_sleep"
@@ -30,6 +36,8 @@ target_link_libraries(${COMPONENT_LIB} INTERFACE
     "-Wl,--wrap=esp_sleep_enable_gpio_wakeup"
     "-Wl,--wrap=encoder_init"
     "-Wl,--wrap=encoder_deinit"
+    "-Wl,-u,__wrap_encoder_init"
+    "-Wl,-u,__wrap_encoder_deinit"
     "-Wl,--wrap=ledc_set_duty"
     "-Wl,--wrap=ledc_update_duty"
     "-Wl,--wrap=sensor_manager_init"

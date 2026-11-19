@@ -5,6 +5,7 @@ build-host*/
 docs
 temp
 .cache
+.venv/
 
 # Local hardware & project configurations
 sdkconfig.old
